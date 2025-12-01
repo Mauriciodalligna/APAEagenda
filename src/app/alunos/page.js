@@ -230,7 +230,6 @@ export default function AlunosListPage() {
                 <MenuItem value="">Todos</MenuItem>
                 <MenuItem value="manhã">Manhã</MenuItem>
                 <MenuItem value="tarde">Tarde</MenuItem>
-                <MenuItem value="noite">Noite</MenuItem>
               </TextField>
               <Stack direction="row" spacing={1}>
                 <CustomButton variant="contained" onClick={load}>
@@ -398,7 +397,6 @@ export default function AlunosListPage() {
                 >
                   <MenuItem value="manhã">Manhã</MenuItem>
                   <MenuItem value="tarde">Tarde</MenuItem>
-                  <MenuItem value="noite">Noite</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} md={3}>

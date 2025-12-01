@@ -1,30 +1,10 @@
 import { NextResponse } from "next/server";
 import { exportarPDF } from "@/controllers/agendamentoController";
 import { initAssociations } from "@/server/db/models";
+import { authenticate, authorize } from "@/middlewares/auth";
 
 // Inicializar associações
 initAssociations();
-
-// Middleware de autenticação
-function authenticate(req) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return { error: "Token de acesso requerido", status: 401 };
-  }
-  
-  const token = authHeader.substring(7);
-  // TODO: Verificar JWT token
-  // Por enquanto, simular usuário autenticado
-  return { user: { id: 1, perfil: "gestor" } };
-}
-
-// Middleware de autorização por roles
-function authorize(user, allowedRoles) {
-  if (!allowedRoles.includes(user.perfil)) {
-    return { error: "Acesso negado", status: 403 };
-  }
-  return null;
-}
 
 export async function POST(req) {
   try {
@@ -33,8 +13,8 @@ export async function POST(req) {
       return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
     }
 
-    // POST: apenas gestor e secretaria podem exportar
-    const authError = authorize(auth.user, ["gestor", "secretaria"]);
+    // Gestores, secretaria e profissionais podem exportar
+    const authError = authorize(auth.user, ["gestor", "secretaria", "profissional"]);
     if (authError) {
       return NextResponse.json({ ok: false, error: authError.error }, { status: authError.status });
     }

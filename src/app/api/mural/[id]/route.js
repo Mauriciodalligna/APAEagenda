@@ -49,8 +49,8 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
     }
 
-    // Apenas gestores e secretaria podem editar avisos
-    const authError = authorize(auth.user, ["gestor", "secretaria"]);
+    // Gestores, secretaria e profissionais podem editar avisos
+    const authError = authorize(auth.user, ["gestor", "secretaria", "profissional"]);
     if (authError) {
       return NextResponse.json({ ok: false, error: authError.error }, { status: authError.status });
     }
@@ -95,8 +95,8 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
     }
 
-    // Apenas gestores e secretaria podem excluir avisos
-    const authError = authorize(auth.user, ["gestor", "secretaria"]);
+    // Gestores, secretaria e profissionais podem excluir avisos
+    const authError = authorize(auth.user, ["gestor", "secretaria", "profissional"]);
     if (authError) {
       return NextResponse.json({ ok: false, error: authError.error }, { status: authError.status });
     }

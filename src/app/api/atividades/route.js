@@ -2,7 +2,8 @@ import { ensureRole } from "@/middlewares/auth";
 import { listar, criar } from "@/controllers/atividadeController";
 
 export async function GET(request) {
-  const auth = ensureRole(request.headers, ["gestor", "secretaria"]);
+  // Gestores, secretaria e profissionais podem consultar atividades
+  const auth = ensureRole(request.headers, ["gestor", "secretaria", "profissional"]);
   if (!auth.ok) return new Response(JSON.stringify(auth), { status: auth.status || 403, headers: { "content-type": "application/json" } });
   const { searchParams } = new URL(request.url);
   const search = {

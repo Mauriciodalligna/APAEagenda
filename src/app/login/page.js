@@ -11,29 +11,76 @@ import Paper from "@mui/material/Paper";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import SchoolIcon from "@mui/icons-material/School";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import FormInput from "@/components/FormInput";
 import CustomButton from "@/components/CustomButton";
 import PageContainer from "@/components/PageContainer";
+
+// Validação de email
+const validateEmail = (email) => {
+  if (!email) {
+    return "E-mail é obrigatório";
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return "Por favor, insira um e-mail válido";
+  }
+  if (email.length > 255) {
+    return "E-mail muito longo (máximo 255 caracteres)";
+  }
+  return null;
+};
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setEmail(value);
+    // Validação em tempo real
+    if (value && emailError) {
+      const validationError = validateEmail(value);
+      setEmailError(validationError || "");
+    }
+  };
+
+  const handleEmailBlur = () => {
+    const validationError = validateEmail(email);
+    setEmailError(validationError || "");
+  };
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
-    if (!email || !senha) {
-      setError("Preencha e-mail e senha.");
+    setEmailError("");
+
+    // Validação de email
+    const emailValidationError = validateEmail(email);
+    if (emailValidationError) {
+      setEmailError(emailValidationError);
       return;
     }
+
+    // Validação básica
+    if (!senha) {
+      setError("Senha é obrigatória.");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -184,19 +231,46 @@ export default function LoginPage() {
             type="email"
             label="E-mail"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={handleEmailChange}
+            onBlur={handleEmailBlur}
+            error={!!emailError}
+            helperText={emailError}
             required
+            disabled={loading}
+            autoComplete="email"
+            autoFocus
           />
           <FormInput
-            type="password"
+            type={showPassword ? "text" : "password"}
             label="Senha"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             required
+            disabled={loading}
+            autoComplete="current-password"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                    size="small"
+                  >
+                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
         </Stack>
         <Stack spacing={2}>
-          <CustomButton type="submit" variant="contained" size="large" disabled={loading}>
+          <CustomButton 
+            type="submit" 
+            variant="contained" 
+            size="large" 
+            disabled={loading || !!emailError || !email.trim() || !senha.trim()}
+          >
             {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Entrar"}
           </CustomButton>
           <Stack direction="row" justifyContent="flex-end">

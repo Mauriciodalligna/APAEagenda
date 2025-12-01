@@ -31,8 +31,13 @@ export default function ResetPasswordPage() {
       setError("Token é obrigatório.");
       return;
     }
-    if (!senha || senha.length < 6) {
-      setError("A nova senha deve ter pelo menos 6 caracteres.");
+    // Validação de força de senha
+    if (!senha || senha.length < 8) {
+      setError("A nova senha deve ter no mínimo 8 caracteres.");
+      return;
+    }
+    if (senha.length > 128) {
+      setError("A senha deve ter no máximo 128 caracteres.");
       return;
     }
     if (senha !== confirmar) {

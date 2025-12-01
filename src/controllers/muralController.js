@@ -302,8 +302,13 @@ export async function atualizarAviso(req, res) {
       });
     }
 
-    // Verificar se o usuário pode editar (apenas o remetente ou gestor)
-    if (aviso.remetente_id !== usuario_id && !req.user.roles?.includes('gestor')) {
+    // Verificar se o usuário pode editar (remetente, gestor ou profissional)
+    const userPerfil = req.user.perfil || req.user.roles?.[0];
+    const podeEditar = aviso.remetente_id === usuario_id || 
+                      userPerfil === 'gestor' || 
+                      userPerfil === 'profissional';
+    
+    if (!podeEditar) {
       return res.status(403).json({
         ok: false,
         error: "Você não tem permissão para editar este aviso"
@@ -394,8 +399,13 @@ export async function excluirAviso(req, res) {
       });
     }
 
-    // Verificar se o usuário pode excluir (apenas o remetente ou gestor)
-    if (aviso.remetente_id !== usuario_id && !req.user.roles?.includes('gestor')) {
+    // Verificar se o usuário pode excluir (remetente, gestor ou profissional)
+    const userPerfil = req.user.perfil || req.user.roles?.[0];
+    const podeExcluir = aviso.remetente_id === usuario_id || 
+                       userPerfil === 'gestor' || 
+                       userPerfil === 'profissional';
+    
+    if (!podeExcluir) {
       return res.status(403).json({
         ok: false,
         error: "Você não tem permissão para excluir este aviso"

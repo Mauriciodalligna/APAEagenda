@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
 import Usuario from "@/server/db/models/usuario";
+import Profissional from "@/server/db/models/profissional";
 import LogAcao from "@/server/db/models/log_acao";
 
 function sanitizeUser(userInstance) {
@@ -65,10 +66,25 @@ export async function criar({ adminId, nome, email, senha, perfil, status = true
 export async function atualizar({ adminId, id, nome, perfil, status }) {
   const usuario = await Usuario.findByPk(id);
   if (!usuario) return { ok: false, status: 404, error: "Usuário não encontrado" };
+  
+  const nomeAnterior = usuario.nome;
+  const perfilAnterior = usuario.perfil;
+  
   if (typeof nome !== "undefined") usuario.nome = nome;
   if (typeof perfil !== "undefined") usuario.perfil = perfil;
   if (typeof status !== "undefined") usuario.status = Boolean(status);
   await usuario.save();
+  
+  // Se o nome foi alterado e o usuário tem perfil profissional (atual), atualizar o profissional correspondente
+  if (typeof nome !== "undefined" && nome !== nomeAnterior && usuario.perfil === "profissional") {
+    // Buscar profissional com o nome anterior
+    const profissional = await Profissional.findOne({ where: { nome: { [Op.iLike]: nomeAnterior } } });
+    if (profissional) {
+      profissional.nome = nome;
+      await profissional.save();
+    }
+  }
+  
   await LogAcao.create({
     usuario_id: adminId,
     acao: "ATUALIZAR_USUARIO",

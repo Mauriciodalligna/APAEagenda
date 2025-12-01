@@ -9,6 +9,7 @@ import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
+import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -244,14 +245,14 @@ export default function UsuariosListPage() {
 
         <Paper variant="outlined" sx={{ borderRadius: 4, overflow: "hidden" }}>
           {loading ? <LinearProgress /> : null}
-          <TableContainer>
-            <Table size="small">
+          <TableContainer sx={{ maxHeight: { xs: "70vh", md: "none" }, overflowX: "auto" }}>
+            <Table size="small" sx={{ minWidth: 600 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>ID</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>ID</TableCell>
                   <TableCell>Nome</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Perfil</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Email</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Perfil</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Ações</TableCell>
                 </TableRow>
@@ -271,10 +272,17 @@ export default function UsuariosListPage() {
                 ) : null}
                 {data.map((usuario) => (
                   <TableRow key={usuario.id} hover>
-                    <TableCell>{usuario.id}</TableCell>
-                    <TableCell>{usuario.nome}</TableCell>
-                    <TableCell>{usuario.email}</TableCell>
-                    <TableCell>{usuario.perfil}</TableCell>
+                    <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>{usuario.id}</TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: { xs: 600, sm: 400 } }}>
+                        {usuario.nome}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" } }}>
+                        {usuario.email} • {usuario.perfil}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>{usuario.email}</TableCell>
+                    <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>{usuario.perfil}</TableCell>
                     <TableCell>
                       <Chip
                         label={usuario.status ? "Ativo" : "Inativo"}
@@ -283,29 +291,59 @@ export default function UsuariosListPage() {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Stack direction="row" spacing={1}>
-                        <Button size="small" onClick={() => openEditDialog(usuario)}>
-                          Editar
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end" flexWrap="wrap">
+                        <Button 
+                          size="small" 
+                          onClick={() => openEditDialog(usuario)}
+                          sx={{ minWidth: { xs: 40, sm: 64 }, px: { xs: 1, sm: 2 } }}
+                        >
+                          <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                            Editar
+                          </Box>
+                          <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                            Editar
+                          </Box>
                         </Button>
                         {usuario.status ? (
                           <Button
                             size="small"
                             color="warning"
                             onClick={() => handleToggleStatus(usuario, "deactivate")}
+                            sx={{ minWidth: { xs: 40, sm: 64 }, px: { xs: 1, sm: 2 } }}
                           >
-                            Desativar
+                            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                              Desativar
+                            </Box>
+                            <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                              Desativar
+                            </Box>
                           </Button>
                         ) : (
                           <Button
                             size="small"
                             color="success"
                             onClick={() => handleToggleStatus(usuario, "activate")}
+                            sx={{ minWidth: { xs: 40, sm: 64 }, px: { xs: 1, sm: 2 } }}
                           >
-                            Reativar
+                            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                              Reativar
+                            </Box>
+                            <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                              Reativar
+                            </Box>
                           </Button>
                         )}
-                        <Button size="small" onClick={() => handleOpenPasswordDialog(usuario)}>
-                          Alterar senha
+                        <Button 
+                          size="small" 
+                          onClick={() => handleOpenPasswordDialog(usuario)}
+                          sx={{ minWidth: { xs: 40, sm: 64 }, px: { xs: 1, sm: 2 } }}
+                        >
+                          <Box component="span" sx={{ display: { xs: "none", md: "inline" } }}>
+                            Alterar senha
+                          </Box>
+                          <Box component="span" sx={{ display: { xs: "inline", md: "none" } }}>
+                            Senha
+                          </Box>
                         </Button>
                       </Stack>
                     </TableCell>

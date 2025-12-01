@@ -11,7 +11,6 @@ import FormInput from "@/components/FormInput";
 import CustomButton from "@/components/CustomButton";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useRouter } from "next/navigation";
-import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 
 export default function ProfissionaisCreatePage() {
@@ -83,14 +82,20 @@ export default function ProfissionaisCreatePage() {
         )}
 
         <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: { xs: 3, md: 4 }, borderRadius: 4 }}>
-          <Stack spacing={3}>
+          <Stack spacing={2}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <TextField select label="Usuário (profissional)" value={form.nome} onChange={updateField("nome")} fullWidth required>
+                <FormInput 
+                  select 
+                  label="Usuário (profissional)" 
+                  value={form.nome} 
+                  onChange={updateField("nome")} 
+                  required
+                >
                   {usuarios.map((u) => (
                     <MenuItem key={u.id} value={u.nome}>{u.nome}</MenuItem>
                   ))}
-                </TextField>
+                </FormInput>
               </Grid>
               <Grid item xs={12} md={6}>
                 <FormInput label="Setor" value={form.setor} onChange={updateField("setor")} />

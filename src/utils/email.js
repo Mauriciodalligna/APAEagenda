@@ -11,6 +11,10 @@ function createTransporter() {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASSWORD,
     },
+    // Configurações TLS para Brevo e outros servidores SMTP
+    tls: {
+      rejectUnauthorized: false, // Necessário para Brevo
+    },
   };
 
   // Se não tiver credenciais configuradas, retornar null (modo desenvolvimento)
@@ -34,19 +38,29 @@ export async function sendPasswordResetEmail(to, token, userName = null) {
 
     // Se não tiver transporter configurado, apenas logar (modo desenvolvimento)
     if (!transporter) {
-      const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/reset?token=${token}`;
-      console.log("📧 [DEV MODE] Email de recuperação de senha:");
-      console.log(`   Para: ${to}`);
-      console.log(`   Link: ${resetUrl}`);
-      console.log(`   Token: ${token}`);
+      if (process.env.NODE_ENV === "development") {
+        const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/reset?token=${token}`;
+        console.log(`[DEV] Email não configurado - Link de recuperação: ${resetUrl}`);
+      }
       return true; // Retorna true mesmo em dev para não quebrar o fluxo
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const resetUrl = `${appUrl}/auth/reset?token=${token}`;
 
+    // Validar remetente - não pode usar o email SMTP do Brevo como remetente
+    let fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+    
+    // Se o remetente for o email SMTP do Brevo, usar um email válido
+    // O Brevo não permite usar o email SMTP como remetente
+    if (fromEmail && fromEmail.includes('@smtp-brevo.com')) {
+      console.warn("[Email] Email SMTP não pode ser usado como remetente. Configure SMTP_FROM com um email válido.");
+      // Usar um email genérico ou o email do usuário se disponível
+      fromEmail = process.env.SMTP_FROM_ALT || "noreply@apaeagenda.com";
+    }
+    
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from: fromEmail,
       to: to,
       subject: "Recuperação de Senha - APAE Agenda",
       html: `
@@ -177,13 +191,37 @@ export async function sendPasswordResetEmail(to, token, userName = null) {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email de recuperação enviado para: ${to}`);
+    // Verificar conexão SMTP antes de enviar
+    try {
+      await transporter.verify();
+    } catch (verifyError) {
+      console.error("[Email] Erro ao verificar conexão SMTP:", verifyError.message);
+      throw verifyError;
+    }
+    
+    const info = await transporter.sendMail(mailOptions);
+    
+    // Verificar se o email foi realmente aceito
+    if (info.rejected && info.rejected.length > 0) {
+      console.error("[Email] Email rejeitado pelo servidor:", info.rejected);
+      throw new Error(`Email rejeitado: ${info.rejected.join(", ")}`);
+    }
+    
+    if (!info.accepted || info.accepted.length === 0) {
+      console.error("[Email] Nenhum endereço aceito pelo servidor SMTP");
+      throw new Error("Nenhum endereço aceito pelo servidor SMTP");
+    }
+    
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Email] Enviado para ${to} - Message ID: ${info.messageId}`);
+    }
+    
     return true;
   } catch (error) {
-    console.error("❌ Erro ao enviar email de recuperação:", error);
-    // Em caso de erro, logar mas não falhar completamente (modo gracioso)
-    // Em produção, você pode querer logar em um serviço de monitoramento
+    console.error("[Email] Erro ao enviar email de recuperação:", error.message);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[Email] Detalhes:", error.code, error.response);
+    }
     return false;
   }
 }

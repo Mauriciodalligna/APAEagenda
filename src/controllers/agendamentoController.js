@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Agendamento, Profissional, Atividade, Aluno, AgendamentoAluno, LogAcao, initAssociations } from "@/server/db/models";
+import { Agendamento, Profissional, Atividade, Aluno, AgendamentoAluno, LogAcao, Usuario, initAssociations } from "@/server/db/models";
 import jsPDF from "jspdf";
 
 // Configurações da agenda
@@ -86,11 +86,6 @@ export async function listar(req, res) {
     // Converter objetos Sequelize para JSON simples
     const agendamentosJSON = agendamentos.map(ag => ag.toJSON());
 
-    // Log temporário para debug
-    if (agendamentosJSON.length > 0) {
-      console.log("Primeiro agendamento:", JSON.stringify(agendamentosJSON[0], null, 2));
-    }
-
     res.json({
       ok: true,
       data: agendamentosJSON,
@@ -98,7 +93,7 @@ export async function listar(req, res) {
     });
 
   } catch (error) {
-    console.error("Erro ao listar agendamentos:", error);
+    console.error("[Agendamento] Erro ao listar:", error.message);
     res.status(500).json({
       ok: false,
       error: "Erro interno do servidor"
@@ -124,8 +119,6 @@ export async function criar(req, res) {
       recorrencia_fim
     } = req.body;
 
-    // Log temporário para debug
-    console.log("Dados recebidos:", { observacoes, req_body: req.body });
 
     // Validações básicas
     if (!profissional_nome || !aluno_ids?.length || !atividade || !data || !hora_inicio) {
@@ -235,19 +228,13 @@ export async function criar(req, res) {
         await anexarAlunosAoAgendamento(agendamento.id, aluno_ids, transaction);
       }
 
-      // Log temporário para debug
-      console.log("Backend - Agendamento criado:", {
-        id: agendamento.id,
-        observacoes: agendamento.observacoes,
-        dataValues: agendamento.dataValues
-      });
-
       agendamentosCriados.push(agendamento);
     }
 
     // Log da ação
+    const usuarioIdValido = await validarUsuarioId(req.user?.id, transaction);
     await LogAcao.create({
-      usuario_id: req.user.id,
+      usuario_id: usuarioIdValido,
       acao: "criar_agendamento",
       detalhes: JSON.stringify({
         agendamentos_criados: agendamentosCriados.length,
@@ -270,7 +257,7 @@ export async function criar(req, res) {
 
   } catch (error) {
     await transaction.rollback();
-    console.error("Erro ao criar agendamento:", error);
+    console.error("[Agendamento] Erro ao criar:", error.message);
     res.status(500).json({
       ok: false,
       error: "Erro interno do servidor"
@@ -348,8 +335,9 @@ export async function atualizar(req, res) {
     }
 
     // Log da ação
+    const usuarioIdValido = await validarUsuarioId(req.user?.id, transaction);
     await LogAcao.create({
-      usuario_id: req.user.id,
+      usuario_id: usuarioIdValido,
       acao: "atualizar_agendamento",
       detalhes: JSON.stringify({
         agendamento_id: id,
@@ -367,7 +355,7 @@ export async function atualizar(req, res) {
 
   } catch (error) {
     await transaction.rollback();
-    console.error("Erro ao atualizar agendamento:", error);
+    console.error("[Agendamento] Erro ao atualizar:", error.message);
     res.status(500).json({
       ok: false,
       error: "Erro interno do servidor"
@@ -428,8 +416,9 @@ export async function cancelar(req, res) {
     }
 
     // Log da ação
+    const usuarioIdValido = await validarUsuarioId(req.user?.id, transaction);
     await LogAcao.create({
-      usuario_id: req.user.id,
+      usuario_id: usuarioIdValido,
       acao: "cancelar_agendamento",
       detalhes: JSON.stringify({
         agendamento_id: id,
@@ -447,7 +436,7 @@ export async function cancelar(req, res) {
 
   } catch (error) {
     await transaction.rollback();
-    console.error("Erro ao cancelar agendamento:", error);
+    console.error("[Agendamento] Erro ao cancelar:", error.message);
     res.status(500).json({
       ok: false,
       error: "Erro interno do servidor"
@@ -460,25 +449,32 @@ export async function cancelar(req, res) {
  */
 export async function exportarPDF(req, res) {
   try {
-    const { profissional_nome, aluno_id, semana_inicio, opcoes = {} } = req.body;
+    const { profissional_nome, aluno_id, semana_inicio, data, formato = "semana", opcoes = {} } = req.body;
     
-    console.log("Backend - Opções recebidas:", opcoes);
-
-    // Removendo validação obrigatória - permitir exportar todos os agendamentos
-    // if (!profissional_nome && !aluno_id) {
-    //   return res.status(400).json({
-    //     ok: false,
-    //     error: "É necessário fornecer profissional_nome ou aluno_id"
-    //   });
-    // }
-
-    // Calcular data fim da semana
-    const dataInicio = new Date(semana_inicio);
-    const dataFim = new Date(dataInicio);
-    dataFim.setDate(dataFim.getDate() + 6);
+    let dataInicioStr, dataFimStr, periodoTexto;
+    
+    if (formato === "dia" && data) {
+      // Exportação por dia único
+      const [ano, mes, dia] = data.split('-').map(Number);
+      dataInicioStr = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+      dataFimStr = dataInicioStr;
+      periodoTexto = formatarData(dataInicioStr);
+    } else if (semana_inicio) {
+      // Exportação por semana (segunda a sexta - 5 dias úteis)
+      const [ano, mes, dia] = semana_inicio.split('-').map(Number);
+      dataInicioStr = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+      const dataFimDate = new Date(ano, mes - 1, dia + 4);
+      dataFimStr = `${dataFimDate.getFullYear()}-${String(dataFimDate.getMonth() + 1).padStart(2, '0')}-${String(dataFimDate.getDate()).padStart(2, '0')}`;
+      periodoTexto = `${formatarData(dataInicioStr)} a ${formatarData(dataFimStr)}`;
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: "É necessário fornecer 'semana_inicio' ou 'data' (formato: 'dia')"
+      });
+    }
 
     const where = {
-      data: { [Op.between]: [semana_inicio, dataFim.toISOString().split('T')[0]] },
+      data: { [Op.between]: [dataInicioStr, dataFimStr] },
       status: "confirmado"
     };
 
@@ -509,47 +505,36 @@ export async function exportarPDF(req, res) {
       include[2].where = { id: aluno_id };
     }
 
-    console.log("Query include:", JSON.stringify(include, null, 2));
-    
     const agendamentos = await Agendamento.findAll({
       where,
       include,
       order: [["data", "ASC"], ["hora_inicio", "ASC"]]
     });
-    
-    console.log("Número de agendamentos encontrados:", agendamentos.length);
 
     // Converter objetos Sequelize para JSON simples
     const agendamentosJSON = agendamentos.map(ag => ag.toJSON());
-    
-    // Log para verificar dados dos alunos
-    if (agendamentosJSON.length > 0) {
-      console.log("Primeiro agendamento com dados dos alunos:");
-      console.log("- ID:", agendamentosJSON[0].id);
-      console.log("- Data:", agendamentosJSON[0].data);
-      console.log("- Alunos:", agendamentosJSON[0].alunos);
-      console.log("- Número de alunos:", agendamentosJSON[0].alunos ? agendamentosJSON[0].alunos.length : 0);
-      if (agendamentosJSON[0].alunos && agendamentosJSON[0].alunos.length > 0) {
-        console.log("- Primeiro aluno:", agendamentosJSON[0].alunos[0]);
-      }
-    }
 
     // Gerar PDF
     const pdf = gerarPDFAgenda(agendamentosJSON, {
-      periodo: { inicio: semana_inicio, fim: dataFim.toISOString().split('T')[0] },
-      filtro: profissional_nome ? `Profissional: ${profissional_nome}` : `Aluno ID: ${aluno_id}`,
+      periodo: { inicio: dataInicioStr, fim: dataFimStr },
+      periodoTexto: periodoTexto,
+      formato: formato,
+      filtro: profissional_nome ? `Profissional: ${profissional_nome}` : aluno_id ? `Aluno ID: ${aluno_id}` : "Todos os agendamentos",
       opcoes: opcoes
     });
 
     // Configurar headers para download
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="agenda-${semana_inicio}.pdf"`);
+    const fileName = formato === "dia" 
+      ? `agenda-dia-${dataInicioStr}.pdf`
+      : `agenda-semana-${dataInicioStr}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     
     // Enviar PDF
     res.send(pdf);
 
   } catch (error) {
-    console.error("Erro ao exportar PDF:", error);
+    console.error("[Agendamento] Erro ao exportar PDF:", error.message);
     res.status(500).json({
       ok: false,
       error: "Erro interno do servidor"
@@ -558,6 +543,21 @@ export async function exportarPDF(req, res) {
 }
 
 // Funções auxiliares
+
+/**
+ * Verificar se o usuário existe no banco e retornar o id válido ou null
+ */
+async function validarUsuarioId(usuarioId, transaction = null) {
+  if (!usuarioId) return null;
+  
+  try {
+    const usuario = await Usuario.findByPk(usuarioId, { transaction });
+    return usuario ? usuarioId : null;
+  } catch (error) {
+    console.warn(`[Agendamento] Erro ao validar usuário ${usuarioId}:`, error.message);
+    return null;
+  }
+}
 
 /**
  * Gerar PDF da agenda
@@ -578,7 +578,6 @@ function gerarPDFAgenda(agendamentos, opcoes) {
     ...opcoes.opcoes
   };
   
-  console.log("PDF - Configuração final:", config);
 
   // Cabeçalho
   doc.setFontSize(18);
@@ -589,8 +588,11 @@ function gerarPDFAgenda(agendamentos, opcoes) {
   // Período
   doc.setFontSize(12);
   doc.setFont("helvetica", "normal");
-  const periodoTexto = `Período: ${formatarData(opcoes.periodo.inicio)} a ${formatarData(opcoes.periodo.fim)}`;
-  doc.text(periodoTexto, pageWidth / 2, yPosition, { align: "center" });
+  const periodoTextoFinal = opcoes.periodoTexto || 
+    (opcoes.formato === "dia" 
+      ? formatarData(opcoes.periodo.inicio)
+      : `Período: ${formatarData(opcoes.periodo.inicio)} a ${formatarData(opcoes.periodo.fim)}`);
+  doc.text(opcoes.formato === "dia" ? `Data: ${periodoTextoFinal}` : periodoTextoFinal, pageWidth / 2, yPosition, { align: "center" });
   yPosition += 8;
 
   // Filtro
@@ -610,8 +612,9 @@ function gerarPDFAgenda(agendamentos, opcoes) {
   if (config.agruparPorProfissional) {
     // Agrupamento por profissional
     Object.keys(agendamentosAgrupados).forEach(profissionalNome => {
-      // Verificar se precisa de nova página
-      if (yPosition > pageHeight - 40) {
+      // Verificar se precisa de nova página antes de adicionar cabeçalho do profissional
+      // Deixar espaço suficiente para cabeçalho + linha + pelo menos um agendamento
+      if (yPosition > pageHeight - 60) {
         doc.addPage();
         yPosition = 20;
       }
@@ -627,8 +630,17 @@ function gerarPDFAgenda(agendamentos, opcoes) {
       doc.line(20, yPosition, pageWidth - 20, yPosition);
       yPosition += 5;
 
-      // Agendamentos do profissional
-      Object.keys(agendamentosAgrupados[profissionalNome]).forEach(data => {
+      // Agendamentos do profissional - ordenar datas (segunda a sexta) ou apenas uma data
+      const datasOrdenadas = opcoes.formato === "dia" 
+        ? Object.keys(agendamentosAgrupados[profissionalNome])
+        : ordenarDatasSemana(Object.keys(agendamentosAgrupados[profissionalNome]));
+      datasOrdenadas.forEach(data => {
+        // Verificar se precisa de nova página antes de adicionar cabeçalho da data
+        if (yPosition > pageHeight - 50) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
         // Data
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
@@ -646,10 +658,14 @@ function gerarPDFAgenda(agendamentos, opcoes) {
       yPosition += 5; // Espaço entre profissionais
     });
   } else {
-    // Agrupamento por data (padrão)
-    Object.keys(agendamentosAgrupados).forEach(data => {
-      // Verificar se precisa de nova página
-      if (yPosition > pageHeight - 40) {
+    // Agrupamento por data (padrão) - ordenar datas (segunda a sexta) ou apenas uma data
+    const datasOrdenadas = opcoes.formato === "dia"
+      ? Object.keys(agendamentosAgrupados)
+      : ordenarDatasSemana(Object.keys(agendamentosAgrupados));
+    datasOrdenadas.forEach(data => {
+      // Verificar se precisa de nova página antes de adicionar cabeçalho da data
+      // Deixar espaço suficiente para cabeçalho + linha + pelo menos um agendamento
+      if (yPosition > pageHeight - 60) {
         doc.addPage();
         yPosition = 20;
       }
@@ -750,8 +766,21 @@ function agruparPorProfissionalEData(agendamentos) {
  * Adicionar agendamento ao PDF com base nas opções
  */
 function adicionarAgendamentoAoPDF(doc, agendamento, yPosition, pageHeight, config) {
-  // Verificar se precisa de nova página
-  if (yPosition > pageHeight - 30) {
+  // Calcular altura estimada do agendamento
+  let alturaEstimada = 15; // Base: horário + atividade + alunos
+  if (config.incluirDetalhesAlunos && agendamento.alunos) {
+    alturaEstimada += agendamento.alunos.length * 8; // Detalhes de cada aluno
+    if (config.incluirContatos) {
+      alturaEstimada += agendamento.alunos.length * 4; // Contatos
+    }
+  }
+  if (config.incluirObservacoes) {
+    alturaEstimada += 5; // Observações
+  }
+  
+  // Verificar se precisa de nova página ANTES de adicionar o conteúdo
+  // Deixar margem de segurança de 40px do rodapé
+  if (yPosition + alturaEstimada > pageHeight - 40) {
     doc.addPage();
     yPosition = 20;
   }
@@ -773,17 +802,8 @@ function adicionarAgendamentoAoPDF(doc, agendamento, yPosition, pageHeight, conf
   yPosition += 5;
 
   // Alunos
-  console.log("=== PROCESSANDO ALUNOS ===");
-  console.log("Agendamento ID:", agendamento.id);
-  console.log("Dados dos alunos:", agendamento.alunos);
-  console.log("Tipo dos alunos:", typeof agendamento.alunos);
-  console.log("É array?", Array.isArray(agendamento.alunos));
-  console.log("Tem alunos?", !!(agendamento.alunos && agendamento.alunos.length > 0));
-  
   if (agendamento.alunos && agendamento.alunos.length > 0) {
-    console.log("Processando", agendamento.alunos.length, "alunos");
     const nomesAlunos = agendamento.alunos.map(aluno => {
-      console.log("Aluno:", aluno);
       return aluno.nome || 'Nome não encontrado';
     }).join(", ");
     doc.text(`Alunos: ${nomesAlunos}`, 80, yPosition);
@@ -829,15 +849,40 @@ function adicionarAgendamentoAoPDF(doc, agendamento, yPosition, pageHeight, conf
 }
 
 /**
- * Formatar data para exibição
+ * Formatar data para exibição (sem problemas de timezone)
  */
 function formatarData(data) {
+  // Se data já é string no formato YYYY-MM-DD, usar diretamente
+  if (typeof data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    const [ano, mes, dia] = data.split('-').map(Number);
+    const date = new Date(ano, mes - 1, dia);
+    return date.toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+  // Caso contrário, tentar converter normalmente
   const date = new Date(data);
   return date.toLocaleDateString('pt-BR', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric'
+  });
+}
+
+/**
+ * Ordenar datas da semana (segunda a sexta) ou qualquer conjunto de datas
+ */
+function ordenarDatasSemana(datas) {
+  if (!datas || datas.length === 0) return [];
+  if (datas.length === 1) return datas;
+  
+  return [...datas].sort((a, b) => {
+    // Comparar strings YYYY-MM-DD diretamente (ordem lexicográfica funciona)
+    return a.localeCompare(b);
   });
 }
 

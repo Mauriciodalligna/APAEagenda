@@ -117,16 +117,13 @@ export async function POST(request) {
 
     // Se email não foi enviado mas está configurado, logar erro
     if (!emailSent && isEmailConfigured()) {
-      console.error(`❌ Falha ao enviar email de recuperação para ${user.email}`);
-      // Não falhar completamente - o token foi criado, usuário pode usar o link direto
+      console.error(`[Auth] Falha ao enviar email de recuperação para ${user.email}`);
     }
 
     // Em desenvolvimento, mostrar token no console se email não estiver configurado
     if (process.env.NODE_ENV === "development" && !isEmailConfigured()) {
       const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/reset?token=${token}`;
-      console.log(`\n📧 Email não configurado - Modo Desenvolvimento`);
-      console.log(`🔑 Token de recuperação para ${user.email}: ${token}`);
-      console.log(`🔗 Link de recuperação: ${resetUrl}\n`);
+      console.log(`[Auth] Email não configurado - Link: ${resetUrl}`);
     }
 
     return Response.json({
@@ -136,7 +133,7 @@ export async function POST(request) {
       ...(process.env.NODE_ENV === "development" && !isEmailConfigured() && { token, expiresAt }),
     });
   } catch (error) {
-    console.error("Erro ao processar recuperação de senha:", error);
+    console.error("[Auth] Erro ao processar recuperação de senha:", error.message);
     return new Response(
       JSON.stringify({
         ok: false,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import AppShell from "@/components/AppShell";
 import CustomButton from "@/components/CustomButton";
 import Typography from "@mui/material/Typography";
@@ -32,12 +32,13 @@ import TodayIcon from "@mui/icons-material/Today";
 import ViewWeekIcon from "@mui/icons-material/ViewWeek";
 import ViewDayIcon from "@mui/icons-material/ViewDay";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import EventNoteIcon from "@mui/icons-material/EventNote";
 import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import DownloadIcon from "@mui/icons-material/Download";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay, addDays, endOfWeek } from "date-fns";
+import { format, parse, startOfWeek, getDay, addDays, endOfWeek, addWeeks, subWeeks, addMonths, subMonths } from "date-fns";
 import ptBR from "date-fns/locale/pt-BR";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
@@ -70,15 +71,36 @@ export default function AgendamentosPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState("week");
   
+  // Refs para acessar valores atuais sem causar re-renders
+  const currentDateRef = useRef(currentDate);
+  const currentViewRef = useRef(currentView);
+  
+  // Atualizar refs quando os estados mudam
+  useEffect(() => {
+    currentDateRef.current = currentDate;
+  }, [currentDate]);
+  
+  useEffect(() => {
+    currentViewRef.current = currentView;
+  }, [currentView]);
+  
   // Estado para semana selecionada para exportação
   const [selectedWeekForExport, setSelectedWeekForExport] = useState(() => {
-    // Inicializar com a segunda-feira da semana atual
+    // Inicializar com a segunda-feira da semana atual (sem problemas de timezone)
     const today = new Date();
     const dayOfWeek = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    return monday.toISOString().split('T')[0];
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
   });
+  
+  // Estado para data única (exportação diária)
+  const [selectedDayForExport, setSelectedDayForExport] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
+  
+  // Estado para formato de exportação (dia ou semana)
+  const [exportFormat, setExportFormat] = useState("semana");
   
   // Estado para próximos agendamentos
   const [proximosAgendamentos, setProximosAgendamentos] = useState([]);
@@ -116,8 +138,7 @@ export default function AgendamentosPage() {
     incluirDetalhesAlunos: true,
     incluirContatos: true,
     agruparPorProfissional: false,
-    incluirEstatisticas: true,
-    formato: "semanal" // semanal, mensal, personalizado
+    incluirEstatisticas: true
   });
 
   const token = useMemo(() => {
@@ -140,9 +161,10 @@ export default function AgendamentosPage() {
   }
 
   function formatWeekPeriod(weekStart) {
-    const start = new Date(weekStart);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
+    // Criar data sem problemas de timezone usando componentes
+    const [ano, mes, dia] = weekStart.split('-').map(Number);
+    const start = new Date(ano, mes - 1, dia);
+    const end = new Date(ano, mes - 1, dia + 4); // Segunda + 4 dias = Sexta-feira
     
     return `${start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} a ${end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
   }
@@ -171,22 +193,49 @@ export default function AgendamentosPage() {
   const loadAgendamentos = useCallback(async () => {
     try {
       setError("");
+      
+      // Requer filtro de profissional ou aluno para exibir agendamentos
+      const temFiltrosEspecificos = filters.profissional_nome || filters.aluno_id;
+      
+      if (!temFiltrosEspecificos) {
+        // Sem filtros: agenda vazia
+        setEvents([]);
+        return;
+      }
+      
       const qs = new URLSearchParams();
+      qs.append("limit", "500");
+      
       if (filters.profissional_nome) qs.append("profissional_nome", filters.profissional_nome);
       if (filters.aluno_id) qs.append("aluno_id", String(filters.aluno_id));
       if (filters.status) qs.append("status", filters.status);
-      qs.append("limit", "500");
+      
       const res = await fetch(`/api/agendamentos?${qs.toString()}`, {
         headers: { authorization: `Bearer ${token}` },
       });
-      const j = await res.json();
-      if (!res.ok || !j.ok) {
-        setError(j?.error || "Falha ao carregar agenda");
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "Erro ao processar resposta" }));
+        setError(errorData?.error || `Erro ${res.status}: Falha ao carregar agenda`);
+        setEvents([]);
         return;
       }
-      const evs = (j.data || []).map((ag) => ({
+      
+      const j = await res.json().catch(() => ({ ok: false, error: "Erro ao processar resposta JSON" }));
+      
+      if (!j.ok) {
+        setError(j?.error || "Falha ao carregar agenda");
+        setEvents([]);
+        return;
+      }
+      
+      const evs = (j.data || []).map((ag) => {
+        if (!ag || !ag.data || !ag.hora_inicio || !ag.hora_fim) {
+          return null;
+        }
+        return {
         id: ag.id,
-        title: `${ag.atividade?.nome || "Atividade"} - ${ag.alunos?.map((a) => a.nome).join(", ") || "Sem alunos"}`,
+          title: `${ag.atividade?.nome || "Atividade"} - ${(ag.alunos || []).map((a) => a?.nome || "").filter(Boolean).join(", ") || "Sem alunos"}`,
         start: toDate(ag.data, ag.hora_inicio),
         end: toDate(ag.data, ag.hora_fim),
         resource: ag,
@@ -196,10 +245,14 @@ export default function AgendamentosPage() {
           border: "none",
           borderRadius: "4px",
         },
-      }));
+        };
+      }).filter(Boolean);
+      
       setEvents(evs);
-    } catch {
-      setError("Erro ao carregar agenda");
+    } catch (err) {
+      console.error("[Agendamentos] Erro ao carregar agenda:", err);
+      setError(err instanceof Error ? err.message : "Erro ao carregar agenda");
+      setEvents([]);
     }
   }, [filters.aluno_id, filters.profissional_nome, filters.status, token]);
 
@@ -229,38 +282,74 @@ export default function AgendamentosPage() {
   }
 
   // Funções de navegação do calendário
-  function handleNavigate(action) {
-    const newDate = new Date(currentDate);
+  // Usando useRef para evitar recriação da função a cada mudança de estado
+  const handleNavigate = useCallback((action) => {
+    console.log('[handleNavigate] Chamado com:', action, 'tipo:', typeof action, 'é Date?', action instanceof Date);
     
-    switch (action) {
-      case 'PREV':
-        if (currentView === 'day') {
-          newDate.setDate(newDate.getDate() - 1);
-        } else if (currentView === 'week') {
-          newDate.setDate(newDate.getDate() - 7);
-        } else if (currentView === 'month') {
-          newDate.setMonth(newDate.getMonth() - 1);
-        }
-        break;
-      case 'NEXT':
-        if (currentView === 'day') {
-          newDate.setDate(newDate.getDate() + 1);
-        } else if (currentView === 'week') {
-          newDate.setDate(newDate.getDate() + 7);
-        } else if (currentView === 'month') {
-          newDate.setMonth(newDate.getMonth() + 1);
-        }
-        break;
-      case 'TODAY':
-        newDate.setTime(new Date().getTime());
-        break;
+    let newDate;
+    const currentDateValue = currentDateRef.current;
+    const currentViewValue = currentViewRef.current;
+    
+    if (typeof action === 'string') {
+      // Ação por string (PREV, NEXT, TODAY) - usado pelo Calendar internamente
+      newDate = new Date(currentDateValue);
+      
+      switch (action) {
+        case 'PREV':
+          if (currentViewValue === 'day') {
+            newDate = addDays(newDate, -1);
+          } else if (currentViewValue === 'week') {
+            newDate = subWeeks(newDate, 1);
+          } else if (currentViewValue === 'month') {
+            newDate = subMonths(newDate, 1);
+          }
+          break;
+        case 'NEXT':
+          if (currentViewValue === 'day') {
+            newDate = addDays(newDate, 1);
+          } else if (currentViewValue === 'week') {
+            newDate = addWeeks(newDate, 1);
+          } else if (currentViewValue === 'month') {
+            newDate = addMonths(newDate, 1);
+          }
+          break;
+        case 'TODAY':
+          newDate = new Date();
+          break;
+        default:
+          console.log('[handleNavigate] Ação desconhecida:', action);
+          return; // Não fazer nada se ação desconhecida
+      }
+    } else if (action instanceof Date) {
+      // Ação por Date (CalendarToolbar passa uma Date diretamente)
+      newDate = action;
+      console.log('[handleNavigate] Recebeu Date:', newDate);
+    } else {
+      // Fallback: tentar converter para Date
+      try {
+        newDate = new Date(action);
+        console.log('[handleNavigate] Convertido para Date:', newDate);
+      } catch (error) {
+        console.error('[handleNavigate] Erro ao converter:', error);
+        return; // Se não conseguir converter, não fazer nada
+      }
     }
     
-    setCurrentDate(newDate);
-  }
+    // Atualizar o estado apenas se a data for válida
+    // Criar uma nova instância de Date para garantir que React detecte a mudança
+    if (newDate instanceof Date && !isNaN(newDate.getTime())) {
+      const updatedDate = new Date(newDate);
+      console.log('[handleNavigate] Atualizando currentDate de', currentDateValue, 'para', updatedDate);
+      setCurrentDate(updatedDate);
+    } else {
+      console.error('[handleNavigate] Data inválida:', newDate);
+    }
+  }, []); // Sem dependências - usa refs para valores atuais
 
   function handleViewChange(view) {
-    setCurrentView(view);
+    if (view) {
+      setCurrentView(view);
+    }
   }
 
   // Função para obter cor baseada no tipo de atividade
@@ -285,20 +374,79 @@ export default function AgendamentosPage() {
       return format(date, "MMMM yyyy", { locale: ptBR });
     }
     if (view === "week") {
-      const start = startOfWeek(date, { weekStartsOn: 1 });
-      const end = endOfWeek(date, { weekStartsOn: 1 });
+      // Semana de segunda a sexta (sem sábado e domingo)
+      const start = startOfWeek(date, { weekStartsOn: 1 }); // Segunda-feira
+      const end = addDays(start, 4); // Sexta-feira (segunda + 4 dias)
       return `${format(start, "dd/MM", { locale: ptBR })} - ${format(end, "dd/MM/yyyy", { locale: ptBR })}`;
     }
     return format(date, "dd 'de' MMMM yyyy", { locale: ptBR });
   }
 
-  const CalendarToolbar = ({ date, view, onNavigate, onView }) => {
+  // CalendarToolbar customizado
+  // Usando uma closure para ter acesso direto ao handleNavigate do componente pai
+  const CalendarToolbar = useCallback(({ date, view, onNavigate, onView }) => {
+    console.log('[CalendarToolbar] Renderizado - date:', date, 'view:', view);
+    
     const label = getToolbarLabel(date, view);
 
     const handleViewChange = (_event, nextView) => {
       if (nextView) {
         onView(nextView);
       }
+    };
+
+    const handlePrev = () => {
+      // Calcular nova data baseada na view atual
+      let newDate;
+      
+      if (view === 'day') {
+        newDate = addDays(date, -1);
+      } else if (view === 'week') {
+        newDate = subWeeks(date, 1);
+      } else if (view === 'month') {
+        newDate = subMonths(date, 1);
+      } else {
+        newDate = date;
+      }
+      
+      // Criar uma nova instância de Date para garantir que o Calendar detecte a mudança
+      const dateToNavigate = new Date(newDate);
+      
+      console.log('[CalendarToolbar] handlePrev - view:', view, 'date atual:', date, 'nova data:', dateToNavigate);
+      
+      // Chamar diretamente o handleNavigate do componente pai (não o onNavigate do Calendar)
+      console.log('[CalendarToolbar] handlePrev - chamando handleNavigate diretamente com:', dateToNavigate);
+      handleNavigate(dateToNavigate);
+    };
+
+    const handleNext = () => {
+      // Calcular nova data baseada na view atual
+      let newDate;
+      
+      if (view === 'day') {
+        newDate = addDays(date, 1);
+      } else if (view === 'week') {
+        newDate = addWeeks(date, 1);
+      } else if (view === 'month') {
+        newDate = addMonths(date, 1);
+      } else {
+        newDate = date;
+      }
+      
+      // Criar uma nova instância de Date para garantir que o Calendar detecte a mudança
+      const dateToNavigate = new Date(newDate);
+      
+      console.log('[CalendarToolbar] handleNext - view:', view, 'date atual:', date, 'nova data:', dateToNavigate);
+      
+      // Chamar diretamente o handleNavigate do componente pai (não o onNavigate do Calendar)
+      console.log('[CalendarToolbar] handleNext - chamando handleNavigate diretamente com:', dateToNavigate);
+      handleNavigate(dateToNavigate);
+    };
+
+    const handleToday = () => {
+      const today = new Date();
+      console.log('[CalendarToolbar] handleToday - chamando handleNavigate diretamente com:', today);
+      handleNavigate(today);
     };
 
     return (
@@ -315,17 +463,17 @@ export default function AgendamentosPage() {
         }}
       >
         <Stack direction="row" spacing={1} alignItems="center">
-          <IconButton aria-label="Voltar período" onClick={() => onNavigate("PREV")} size="small">
+          <IconButton aria-label="Voltar período" onClick={handlePrev} size="small">
             <ChevronLeftIcon fontSize="small" />
           </IconButton>
-          <IconButton aria-label="Avançar período" onClick={() => onNavigate("NEXT")} size="small">
+          <IconButton aria-label="Avançar período" onClick={handleNext} size="small">
             <ChevronRightIcon fontSize="small" />
           </IconButton>
           <Button
             variant="outlined"
             size="small"
             startIcon={<TodayIcon />}
-            onClick={() => onNavigate("TODAY")}
+            onClick={handleToday}
           >
             Hoje
           </Button>
@@ -357,7 +505,7 @@ export default function AgendamentosPage() {
         </ToggleButtonGroup>
       </Stack>
     );
-  };
+  }, [handleNavigate]); // Dependência apenas do handleNavigate
 
 
   // Função para buscar próximos agendamentos dos alunos
@@ -472,11 +620,6 @@ export default function AgendamentosPage() {
   }
 
   async function handleExportPDF() {
-    if (!filters.profissional_nome && !filters.aluno_id) {
-      setError("Selecione um profissional ou aluno para exportar");
-      return;
-    }
-
     try {
       setLoading(true);
       setError("");
@@ -485,7 +628,10 @@ export default function AgendamentosPage() {
       const payload = {
         profissional_nome: filters.profissional_nome || null,
         aluno_id: filters.aluno_id || null,
-        semana_inicio: selectedWeekForExport,
+        formato: exportFormat,
+        ...(exportFormat === "dia" 
+          ? { data: selectedDayForExport }
+          : { semana_inicio: selectedWeekForExport }),
         opcoes: exportOptions
       };
       
@@ -512,7 +658,10 @@ export default function AgendamentosPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `agenda-semana-${payload.semana_inicio}.pdf`;
+        const fileName = exportFormat === "dia" 
+          ? `agenda-dia-${payload.data}.pdf`
+          : `agenda-semana-${payload.semana_inicio}.pdf`;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -671,31 +820,27 @@ export default function AgendamentosPage() {
                 Coordene atendimentos, acompanhe a disponibilidade da equipe e mantenha a rotina da escola em ordem.
               </Typography>
             </Box>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <CustomButton
-                variant="outlined"
-                color="inherit"
-                startIcon={<ChevronLeftIcon />}
-                onClick={() => handleNavigate("PREV")}
-              >
-                Semana anterior
-              </CustomButton>
-              <CustomButton
-                variant="outlined"
-                color="inherit"
-                startIcon={<ChevronRightIcon />}
-                onClick={() => handleNavigate("NEXT")}
-              >
-                Próxima semana
-              </CustomButton>
+            <Stack 
+              direction={{ xs: "column", sm: "row" }} 
+              spacing={1} 
+              alignItems={{ xs: "stretch", sm: "center" }}
+              sx={{ width: { xs: "100%", sm: "auto" } }}
+            >
               <CustomButton
                 variant="outlined"
                 color="inherit"
                 startIcon={<RefreshIcon />}
                 onClick={loadAgendamentos}
                 disabled={loading}
+                fullWidth
+                sx={{ display: { xs: "flex", sm: "inline-flex" } }}
               >
-                Atualizar agenda
+                <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                  Atualizar agenda
+                </Box>
+                <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                  Atualizar
+                </Box>
               </CustomButton>
               <CustomButton
                 variant="outlined"
@@ -703,8 +848,15 @@ export default function AgendamentosPage() {
                 startIcon={<DownloadIcon />}
                 onClick={() => setExportModalOpen(true)}
                 disabled={loading}
+                fullWidth
+                sx={{ display: { xs: "flex", sm: "inline-flex" } }}
               >
-                Exportar PDF
+                <Box component="span" sx={{ display: { xs: "none", md: "inline" } }}>
+                  Exportar PDF
+                </Box>
+                <Box component="span" sx={{ display: { xs: "inline", md: "none" } }}>
+                  PDF
+                </Box>
               </CustomButton>
               <CustomButton
                 variant="contained"
@@ -719,19 +871,27 @@ export default function AgendamentosPage() {
                     atividade: { id: null, nome: "", duracao_padrao: 60, cor: "#1976d2", tipo: "Geral" },
                   }));
                 }}
+                fullWidth
+                sx={{ display: { xs: "flex", sm: "inline-flex" } }}
               >
-                Novo agendamento
+                <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                  Novo agendamento
+                </Box>
+                <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                  Novo
+                </Box>
               </CustomButton>
             </Stack>
           </Stack>
         </Stack>
 
-        {error && (
+        {/* Mensagens globais - só exibir quando nenhum modal estiver aberto */}
+        {error && !modalOpen && !editModalOpen && !cancelModalOpen && (
           <Alert severity="error" variant="outlined" onClose={() => setError("")}>
             {error}
           </Alert>
         )}
-        {success && (
+        {success && !modalOpen && !editModalOpen && !cancelModalOpen && (
           <Alert severity="success" variant="outlined" onClose={() => setSuccess("")}>
             {success}
           </Alert>
@@ -739,11 +899,29 @@ export default function AgendamentosPage() {
 
         <Paper variant="outlined" sx={{ borderRadius: 4, p: { xs: 2, md: 3 } }}>
           <Stack spacing={2}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <FilterAltIcon fontSize="small" color="primary" />
-              <Typography variant="subtitle2" color="text.secondary">
-                Filtros rápidos
-              </Typography>
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <FilterAltIcon fontSize="small" color="primary" />
+                <Typography variant="subtitle2" color="text.secondary">
+                  Filtros rápidos
+                </Typography>
+              </Stack>
+              {!filters.profissional_nome && !filters.aluno_id && (
+                <Alert 
+                  severity="info" 
+                  variant="outlined"
+                  sx={{ 
+                    py: 0.5,
+                    px: 1.5,
+                    fontSize: '0.75rem',
+                    '& .MuiAlert-icon': {
+                      fontSize: '1rem'
+                    }
+                  }}
+                >
+                  Selecione um profissional ou aluno para visualizar os agendamentos na agenda.
+                </Alert>
+              )}
             </Stack>
             <Stack
               direction={{ xs: "column", lg: "row" }}
@@ -783,7 +961,6 @@ export default function AgendamentosPage() {
                 >
                   <MenuItem value="">Todos os status</MenuItem>
                   <MenuItem value="confirmado">Confirmado</MenuItem>
-                  <MenuItem value="pendente">Pendente</MenuItem>
                   <MenuItem value="cancelado">Cancelado</MenuItem>
                 </TextField>
               </Stack>
@@ -793,35 +970,124 @@ export default function AgendamentosPage() {
 
         <Paper variant="outlined" sx={{ borderRadius: 4, overflow: "hidden" }}>
           {loading ? <LinearProgress /> : null}
-          <Box sx={{ height: { xs: 520, md: 700 } }}>
-            <Calendar
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
-              endAccessor="end"
-              view={currentView}
-              date={currentDate}
-              onNavigate={handleNavigate}
-              onView={handleViewChange}
-              views={["week", "day", "month"]}
-              culture="pt-BR"
-              style={{ height: "100%" }}
-              onSelectSlot={handleSelectSlot}
-              onSelectEvent={handleSelectEvent}
-              selectable
-              step={30}
-              timeslots={1}
-              min={new Date(0, 0, 0, 7, 30)}
-              max={new Date(0, 0, 0, 17, 0)}
-              eventPropGetter={(event) => ({ style: event.style })}
-              components={{ toolbar: CalendarToolbar }}
-            />
-          </Box>
+          
+          {/* Estado vazio quando não há filtros */}
+          {!filters.profissional_nome && !filters.aluno_id ? (
+            <Box 
+              sx={{ 
+                height: { xs: 520, md: 700 },
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 4,
+                textAlign: 'center',
+                bgcolor: 'background.default'
+              }}
+            >
+              <Box
+                sx={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: '50%',
+                  bgcolor: 'primary.light',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 3,
+                  opacity: 0.1
+                }}
+              >
+                <EventNoteIcon sx={{ fontSize: 60, color: 'primary.main' }} />
+              </Box>
+              <Typography variant="h5" gutterBottom color="text.primary" fontWeight={600}>
+                Selecione um filtro para visualizar a agenda
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 500 }}>
+                Para uma melhor visualização, selecione um <strong>profissional</strong> ou <strong>aluno</strong> nos filtros acima.
+                Isso evita sobrecarga de informações e facilita a gestão dos agendamentos.
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                <Typography variant="body2" color="text.secondary">
+                  💡 Dica: Você ainda pode criar novos agendamentos mesmo sem filtros selecionados.
+                </Typography>
+              </Stack>
+            </Box>
+          ) : (
+            <Box 
+              sx={{ 
+                height: { xs: 520, md: 700 },
+                // Remove min-height das linhas da agenda para melhor visualização
+                '& .rbc-time-view .rbc-row': {
+                  minHeight: 'unset !important',
+                },
+                // Esconder sábado e domingo apenas na visualização semanal
+                ...(currentView === 'week' && {
+                  '& .rbc-time-header-content': {
+                    '& .rbc-header:last-child': {
+                      display: 'none !important', // Esconde domingo (último dia)
+                    },
+                    '& .rbc-header:nth-last-child(2)': {
+                      display: 'none !important', // Esconde sábado (penúltimo dia)
+                    },
+                  },
+                  '& .rbc-time-content': {
+                    '& .rbc-day-slot:last-child': {
+                      display: 'none !important', // Esconde domingo no corpo
+                    },
+                    '& .rbc-day-slot:nth-last-child(2)': {
+                      display: 'none !important', // Esconde sábado no corpo
+                    },
+                  },
+                }),
+              }}
+            >
+              <Calendar
+                key={`${currentDate.getTime()}-${currentView}`}
+                localizer={localizer}
+                events={events}
+                startAccessor="start"
+                endAccessor="end"
+                view={currentView}
+                date={currentDate}
+                onNavigate={handleNavigate}
+                onView={handleViewChange}
+                views={["week", "day", "month"]}
+                culture="pt-BR"
+                style={{ height: "100%" }}
+                onSelectSlot={handleSelectSlot}
+                onSelectEvent={handleSelectEvent}
+                selectable
+                step={30}
+                timeslots={1}
+                min={new Date(0, 0, 0, 7, 30)}
+                max={new Date(0, 0, 0, 17, 30)}
+                eventPropGetter={(event) => ({ style: event.style })}
+                components={{ toolbar: CalendarToolbar }}
+              />
+            </Box>
+          )}
         </Paper>
       </Stack>
 
       {/* Modal de Criação Rápida */}
-      <Dialog open={modalOpen} onClose={() => setModalOpen(false)} fullWidth maxWidth="md">
+      <Dialog 
+        open={modalOpen} 
+        onClose={() => {
+          setModalOpen(false);
+          setError("");
+          setSuccess("");
+        }} 
+        fullWidth 
+        maxWidth="md"
+        fullScreen={false}
+        sx={{
+          "& .MuiDialog-paper": {
+            m: { xs: 1, sm: 2 },
+            maxHeight: { xs: "calc(100% - 16px)", sm: "90vh" },
+          },
+        }}
+      >
         <DialogTitle sx={{ pb: 1 }}>
           <Stack spacing={0.5}>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -836,6 +1102,16 @@ export default function AgendamentosPage() {
         </DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
           <Stack spacing={3}>
+            {error && modalOpen && (
+              <Alert severity="error" variant="outlined" onClose={() => setError("")} sx={{ mt: 0 }}>
+                {error}
+              </Alert>
+            )}
+            {success && modalOpen && (
+              <Alert severity="success" variant="outlined" onClose={() => setSuccess("")} sx={{ mt: 0 }}>
+                {success}
+              </Alert>
+            )}
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <Autocomplete
@@ -1041,7 +1317,18 @@ export default function AgendamentosPage() {
       </Dialog>
 
       {/* Modal de Detalhes */}
-      <Dialog open={detailModalOpen} onClose={() => setDetailModalOpen(false)} fullWidth maxWidth="lg">
+      <Dialog 
+        open={detailModalOpen} 
+        onClose={() => setDetailModalOpen(false)} 
+        fullWidth 
+        maxWidth="lg"
+        sx={{
+          "& .MuiDialog-paper": {
+            m: { xs: 1, sm: 2 },
+            maxHeight: { xs: "calc(100% - 16px)", sm: "90vh" },
+          },
+        }}
+      >
         <DialogTitle sx={{ pb: 1 }}>
           <Stack spacing={0.5}>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -1211,7 +1498,22 @@ export default function AgendamentosPage() {
       </Dialog>
 
       {/* Modal de Edição */}
-      <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} fullWidth maxWidth="md">
+      <Dialog 
+        open={editModalOpen} 
+        onClose={() => {
+          setEditModalOpen(false);
+          setError("");
+          setSuccess("");
+        }} 
+        fullWidth 
+        maxWidth="md"
+        sx={{
+          "& .MuiDialog-paper": {
+            m: { xs: 1, sm: 2 },
+            maxHeight: { xs: "calc(100% - 16px)", sm: "90vh" },
+          },
+        }}
+      >
         <DialogTitle sx={{ pb: 1 }}>
           <Stack spacing={0.5}>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -1226,6 +1528,16 @@ export default function AgendamentosPage() {
         </DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
           <Stack spacing={3}>
+            {error && editModalOpen && (
+              <Alert severity="error" variant="outlined" onClose={() => setError("")} sx={{ mt: 0 }}>
+                {error}
+              </Alert>
+            )}
+            {success && editModalOpen && (
+              <Alert severity="success" variant="outlined" onClose={() => setSuccess("")} sx={{ mt: 0 }}>
+                {success}
+              </Alert>
+            )}
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <TextField
@@ -1384,7 +1696,11 @@ export default function AgendamentosPage() {
       </Dialog>
 
       {/* Modal de Cancelamento */}
-      <Dialog open={cancelModalOpen} onClose={() => setCancelModalOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={cancelModalOpen} onClose={() => {
+        setCancelModalOpen(false);
+        setError("");
+        setSuccess("");
+      }} fullWidth maxWidth="sm">
         <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Cancelar agendamento
@@ -1392,6 +1708,16 @@ export default function AgendamentosPage() {
         </DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
           <Stack spacing={3}>
+            {error && cancelModalOpen && (
+              <Alert severity="error" variant="outlined" onClose={() => setError("")} sx={{ mt: 0 }}>
+                {error}
+              </Alert>
+            )}
+            {success && cancelModalOpen && (
+              <Alert severity="success" variant="outlined" onClose={() => setSuccess("")} sx={{ mt: 0 }}>
+                {success}
+              </Alert>
+            )}
             <Typography variant="body2" color="text.secondary">
               Informe o motivo do cancelamento e escolha se deseja cancelar apenas este compromisso ou toda a sequência futura.
             </Typography>
@@ -1432,7 +1758,18 @@ export default function AgendamentosPage() {
       </Dialog>
 
       {/* Modal de Exportação PDF */}
-      <Dialog open={exportModalOpen} onClose={() => setExportModalOpen(false)} fullWidth maxWidth="md">
+      <Dialog 
+        open={exportModalOpen} 
+        onClose={() => setExportModalOpen(false)} 
+        fullWidth 
+        maxWidth="md"
+        sx={{
+          "& .MuiDialog-paper": {
+            m: { xs: 1, sm: 2 },
+            maxHeight: { xs: "calc(100% - 16px)", sm: "90vh" },
+          },
+        }}
+      >
         <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Exportar agenda em PDF
@@ -1446,59 +1783,130 @@ export default function AgendamentosPage() {
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                     Período da exportação
                   </Typography>
+                  
                   <TextField
-                    type="date"
-                    label="Semana de referência"
-                    value={selectedWeekForExport}
-                    onChange={(e) => {
-                      const selectedDate = new Date(e.target.value);
-                      if (Number.isNaN(selectedDate.getTime())) return;
-                      const dayOfWeek = selectedDate.getDay();
-                      const monday = new Date(selectedDate);
-                      monday.setDate(selectedDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-                      setSelectedWeekForExport(monday.toISOString().split("T")[0]);
-                    }}
-                    InputLabelProps={{ shrink: true }}
-                    helperText={`Período gerado: ${formatWeekPeriod(selectedWeekForExport)}`}
-                    sx={{ maxWidth: 260 }}
-                  />
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    <CustomButton
-                      variant="outlined"
-                      color="inherit"
-                      onClick={() => {
-                        const currentWeek = new Date(selectedWeekForExport);
-                        currentWeek.setDate(currentWeek.getDate() - 7);
-                        setSelectedWeekForExport(currentWeek.toISOString().split("T")[0]);
-                      }}
-                    >
-                      Semana anterior
-                    </CustomButton>
-                    <CustomButton
-                      variant="outlined"
-                      color="inherit"
-                      onClick={() => {
-                        const today = new Date();
-                        const dayOfWeek = today.getDay();
-                        const monday = new Date(today);
-                        monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-                        setSelectedWeekForExport(monday.toISOString().split("T")[0]);
-                      }}
-                    >
-                      Semana atual
-                    </CustomButton>
-                    <CustomButton
-                      variant="outlined"
-                      color="inherit"
-                      onClick={() => {
-                        const currentWeek = new Date(selectedWeekForExport);
-                        currentWeek.setDate(currentWeek.getDate() + 7);
-                        setSelectedWeekForExport(currentWeek.toISOString().split("T")[0]);
-                      }}
-                    >
-                      Próxima semana
-                    </CustomButton>
-                  </Stack>
+                    select
+                    label="Formato de exportação"
+                    value={exportFormat}
+                    onChange={(e) => setExportFormat(e.target.value)}
+                    sx={{ minWidth: 200 }}
+                  >
+                    <MenuItem value="semana">Semana (Segunda a Sexta)</MenuItem>
+                    <MenuItem value="dia">Dia único</MenuItem>
+                  </TextField>
+
+                  {exportFormat === "semana" ? (
+                    <>
+                      <TextField
+                        type="date"
+                        label="Semana de referência"
+                        value={selectedWeekForExport}
+                        onChange={(e) => {
+                          // Criar data sem problemas de timezone usando componentes
+                          const [ano, mes, dia] = e.target.value.split('-').map(Number);
+                          const selectedDate = new Date(ano, mes - 1, dia);
+                          if (Number.isNaN(selectedDate.getTime())) return;
+                          const dayOfWeek = selectedDate.getDay();
+                          const monday = new Date(ano, mes - 1, dia - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+                          const mondayStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+                          setSelectedWeekForExport(mondayStr);
+                        }}
+                        InputLabelProps={{ shrink: true }}
+                        helperText={`Período gerado: ${formatWeekPeriod(selectedWeekForExport)}`}
+                        sx={{ maxWidth: 260 }}
+                      />
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <CustomButton
+                          variant="outlined"
+                          color="inherit"
+                          onClick={() => {
+                            // Criar data sem problemas de timezone usando componentes
+                            const [ano, mes, dia] = selectedWeekForExport.split('-').map(Number);
+                            const currentWeek = new Date(ano, mes - 1, dia - 7);
+                            const weekStr = `${currentWeek.getFullYear()}-${String(currentWeek.getMonth() + 1).padStart(2, '0')}-${String(currentWeek.getDate()).padStart(2, '0')}`;
+                            setSelectedWeekForExport(weekStr);
+                          }}
+                        >
+                          Semana anterior
+                        </CustomButton>
+                        <CustomButton
+                          variant="outlined"
+                          color="inherit"
+                          onClick={() => {
+                            const today = new Date();
+                            const dayOfWeek = today.getDay();
+                            const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+                            const mondayStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+                            setSelectedWeekForExport(mondayStr);
+                          }}
+                        >
+                          Semana atual
+                        </CustomButton>
+                        <CustomButton
+                          variant="outlined"
+                          color="inherit"
+                          onClick={() => {
+                            // Criar data sem problemas de timezone usando componentes
+                            const [ano, mes, dia] = selectedWeekForExport.split('-').map(Number);
+                            const currentWeek = new Date(ano, mes - 1, dia + 7);
+                            const weekStr = `${currentWeek.getFullYear()}-${String(currentWeek.getMonth() + 1).padStart(2, '0')}-${String(currentWeek.getDate()).padStart(2, '0')}`;
+                            setSelectedWeekForExport(weekStr);
+                          }}
+                        >
+                          Próxima semana
+                        </CustomButton>
+                      </Stack>
+                    </>
+                  ) : (
+                    <>
+                      <TextField
+                        type="date"
+                        label="Data do agendamento"
+                        value={selectedDayForExport}
+                        onChange={(e) => setSelectedDayForExport(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        helperText={`Exportando agendamentos do dia: ${new Date(selectedDayForExport + 'T00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
+                        sx={{ maxWidth: 260 }}
+                      />
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <CustomButton
+                          variant="outlined"
+                          color="inherit"
+                          onClick={() => {
+                            const [ano, mes, dia] = selectedDayForExport.split('-').map(Number);
+                            const previousDay = new Date(ano, mes - 1, dia - 1);
+                            const dayStr = `${previousDay.getFullYear()}-${String(previousDay.getMonth() + 1).padStart(2, '0')}-${String(previousDay.getDate()).padStart(2, '0')}`;
+                            setSelectedDayForExport(dayStr);
+                          }}
+                        >
+                          Dia anterior
+                        </CustomButton>
+                        <CustomButton
+                          variant="outlined"
+                          color="inherit"
+                          onClick={() => {
+                            const today = new Date();
+                            const dayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                            setSelectedDayForExport(dayStr);
+                          }}
+                        >
+                          Hoje
+                        </CustomButton>
+                        <CustomButton
+                          variant="outlined"
+                          color="inherit"
+                          onClick={() => {
+                            const [ano, mes, dia] = selectedDayForExport.split('-').map(Number);
+                            const nextDay = new Date(ano, mes - 1, dia + 1);
+                            const dayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+                            setSelectedDayForExport(dayStr);
+                          }}
+                        >
+                          Próximo dia
+                        </CustomButton>
+                      </Stack>
+                    </>
+                  )}
                 </Stack>
               </CardContent>
             </Card>
@@ -1620,7 +2028,9 @@ export default function AgendamentosPage() {
                     Resumo antes de exportar
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Período:</strong> {formatWeekPeriod(selectedWeekForExport)}
+                    <strong>Período:</strong> {exportFormat === "dia" 
+                      ? new Date(selectedDayForExport + 'T00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                      : formatWeekPeriod(selectedWeekForExport)}
                   </Typography>
                   <Typography variant="body2">
                     <strong>Filtros:</strong> {filters.profissional_nome || filters.aluno_id ? `${filters.profissional_nome ? `Profissional: ${filters.profissional_nome}` : ""}${filters.profissional_nome && filters.aluno_id ? " | " : ""}${filters.aluno_id ? `Aluno: ${alunos.find((a) => a.id === Number(filters.aluno_id))?.nome || `ID ${filters.aluno_id}`}` : ""}` : "Todos os agendamentos"}

@@ -1,30 +1,10 @@
 import { NextResponse } from "next/server";
 import { atualizar, cancelar } from "@/controllers/agendamentoController";
 import { initAssociations } from "@/server/db/models";
+import { authenticate, authorize } from "@/middlewares/auth";
 
 // Inicializar associações
 initAssociations();
-
-// Middleware de autenticação
-function authenticate(req) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return { error: "Token de acesso requerido", status: 401 };
-  }
-  
-  const token = authHeader.substring(7);
-  // TODO: Verificar JWT token
-  // Por enquanto, simular usuário autenticado
-  return { user: { id: 1, perfil: "gestor" } };
-}
-
-// Middleware de autorização por roles
-function authorize(user, allowedRoles) {
-  if (!allowedRoles.includes(user.perfil)) {
-    return { error: "Acesso negado", status: 403 };
-  }
-  return null;
-}
 
 export async function PUT(req, { params }) {
   try {

@@ -1,30 +1,10 @@
 import { NextResponse } from "next/server";
 import { listar, criar } from "@/controllers/agendamentoController";
 import { initAssociations } from "@/server/db/models";
+import { authenticate, authorize } from "@/middlewares/auth";
 
 // Inicializar associações
 initAssociations();
-
-// Middleware de autenticação
-function authenticate(req) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return { error: "Token de acesso requerido", status: 401 };
-  }
-  
-  const token = authHeader.substring(7);
-  // TODO: Verificar JWT token
-  // Por enquanto, simular usuário autenticado
-  return { user: { id: 1, perfil: "gestor" } };
-}
-
-// Middleware de autorização por roles
-function authorize(user, allowedRoles) {
-  if (!allowedRoles.includes(user.perfil)) {
-    return { error: "Acesso negado", status: 403 };
-  }
-  return null;
-}
 
 export async function GET(req) {
   try {
@@ -65,10 +45,22 @@ export async function GET(req) {
     
     await listar(mockReq, mockRes);
     
+    // Garantir que há uma resposta válida
+    if (!responseData) {
+      console.error("[Agendamentos API] Controller não retornou dados");
+      return NextResponse.json(
+        { ok: false, error: "Erro ao processar requisição" },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(responseData, { status: responseStatus });
 
   } catch (error) {
-    console.error("Erro na rota GET /api/agendamentos:", error);
+    console.error("[Agendamentos API] Erro na rota GET:", error.message);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[Agendamentos API] Stack:", error.stack);
+    }
     return NextResponse.json(
       { ok: false, error: "Erro interno do servidor" },
       { status: 500 }
@@ -117,7 +109,7 @@ export async function POST(req) {
     return NextResponse.json(responseData, { status: responseStatus });
 
   } catch (error) {
-    console.error("Erro na rota POST /api/agendamentos:", error);
+    console.error("[Agendamentos API] Erro na rota POST:", error.message);
     return NextResponse.json(
       { ok: false, error: "Erro interno do servidor" },
       { status: 500 }

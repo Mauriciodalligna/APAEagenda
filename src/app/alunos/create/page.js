@@ -98,7 +98,6 @@ export default function AlunosCreatePage() {
                 <FormInput select label="Turno" value={form.turno} onChange={updateField("turno")} required>
                   <MenuItem value="manhã">Manhã</MenuItem>
                   <MenuItem value="tarde">Tarde</MenuItem>
-                  <MenuItem value="noite">Noite</MenuItem>
                 </FormInput>
               </Grid>
               <Grid item xs={12} md={3}>

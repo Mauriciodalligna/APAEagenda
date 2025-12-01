@@ -9,6 +9,7 @@ import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
+import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -58,6 +59,7 @@ export default function ProfissionaisListPage() {
   const [total, setTotal] = useState(0);
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({ nome: "", setor: "", especialidade: "", status: true });
+  const [usuarios, setUsuarios] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -87,6 +89,22 @@ export default function ProfissionaisListPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    async function loadUsuarios() {
+      try {
+        const token = getStoredToken();
+        const res = await fetch(`/api/usuarios?perfil=profissional&status=true&limit=200`, { headers: { authorization: `Bearer ${token}` } });
+        const j = await res.json();
+        if (res.ok && j.ok) {
+          setUsuarios(j.data || []);
+        }
+      } catch {
+        // Silenciosamente falha ao carregar usuários
+      }
+    }
+    loadUsuarios();
+  }, []);
 
   useEffect(() => {
     if (total === 0) {
@@ -232,14 +250,14 @@ export default function ProfissionaisListPage() {
 
         <Paper variant="outlined" sx={{ borderRadius: 4, overflow: "hidden" }}>
           {loading ? <LinearProgress /> : null}
-          <TableContainer>
-            <Table size="small">
+          <TableContainer sx={{ maxHeight: { xs: "70vh", md: "none" }, overflowX: "auto" }}>
+            <Table size="small" sx={{ minWidth: 600 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>ID</TableCell>
+                  <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>ID</TableCell>
                   <TableCell>Nome</TableCell>
-                  <TableCell>Setor</TableCell>
-                  <TableCell>Especialidade</TableCell>
+                  <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Setor</TableCell>
+                  <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>Especialidade</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Ações</TableCell>
                 </TableRow>
@@ -259,10 +277,17 @@ export default function ProfissionaisListPage() {
                 ) : null}
                 {data.map((profissional) => (
                   <TableRow key={profissional.id} hover>
-                    <TableCell>{profissional.id}</TableCell>
-                    <TableCell>{profissional.nome}</TableCell>
-                    <TableCell>{profissional.setor ?? "-"}</TableCell>
-                    <TableCell>{profissional.especialidade ?? "-"}</TableCell>
+                    <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>{profissional.id}</TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: { xs: 600, sm: 400 } }}>
+                        {profissional.nome}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "block", sm: "none" } }}>
+                        {profissional.setor ? `Setor: ${profissional.setor}` : ""} {profissional.especialidade ? `• ${profissional.especialidade}` : ""}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>{profissional.setor ?? "-"}</TableCell>
+                    <TableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>{profissional.especialidade ?? "-"}</TableCell>
                     <TableCell>
                       <Chip
                         label={profissional.status ? "Ativo" : "Inativo"}
@@ -271,12 +296,18 @@ export default function ProfissionaisListPage() {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Stack direction="row" spacing={1}>
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                         <Button
                           size="small"
                           onClick={() => handleEdit(profissional)}
+                          sx={{ minWidth: { xs: 40, sm: 64 }, px: { xs: 1, sm: 2 } }}
                         >
-                          Editar
+                          <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                            Editar
+                          </Box>
+                          <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                            Editar
+                          </Box>
                         </Button>
                         {profissional.status ? (
                           <Button
@@ -325,11 +356,17 @@ export default function ProfissionaisListPage() {
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <TextField
-                label="Nome"
+                select
+                label="Usuário (profissional)"
                 value={editForm.nome}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, nome: e.target.value }))}
                 fullWidth
-              />
+                required
+              >
+                {usuarios.map((u) => (
+                  <MenuItem key={u.id} value={u.nome}>{u.nome}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
