@@ -1,0 +1,50 @@
+---
+description: Padrões da API e servidor — Next.js App Router, controllers, Sequelize, auth JWT
+globs:
+  - "src/app/api/**/*.js"
+  - "src/controllers/**/*.js"
+  - "src/middlewares/**/*.js"
+  - "src/server/**/*.js"
+---
+
+# API e servidor — APAE Agenda
+
+- **Stack:** Next.js 14 (App Router), rotas em `src/app/api/**/route.js`, lógica em `src/controllers/`, Sequelize + PostgreSQL em `src/server/db/`, autenticação JWT em `src/middlewares/auth.js` e `src/utils/token.js`.
+- **Comandos:** `npm run dev`, `npm run build`, `npm run lint`. Banco: `npm run db:migrate`, `npm run db:seed` (sequelize-cli).
+
+## Estilo (JavaScript)
+
+- `camelCase` para funções e variáveis; arquivos em `camelCase` ou kebab-case conforme o projeto.
+- Preferir `async`/`await`; early return em validações de auth/entrada.
+- ESLint (`eslint-config-next`); não desabilitar regras sem motivo.
+
+## Rotas API (`route.js`)
+
+- Exportar `GET`, `POST`, `PUT`, `PATCH`, `DELETE` conforme necessário; tratar erros com `try/catch` e respostas JSON consistentes (`ok`, `error`, status HTTP adequado).
+- Autenticação/autorização antes da lógica de negócio; não expor detalhes internos do erro em produção.
+- Delegar regras de negócio e acesso a dados aos **controllers** (ou camada equivalente), não concentrar tudo na rota.
+
+## Controllers
+
+- Funções exportadas (ex.: `listar`, `criar`); entrada validada/sanitizada antes de persistir.
+- Usar modelos Sequelize; queries com bindings (where com objetos/parâmetros), evitar SQL cru com interpolação de input do usuário.
+
+## Sequelize e banco
+
+- Models e migrations alinhados ao schema existente; migrations via sequelize-cli em `src/server/db/migrations` (ou caminho configurado no projeto).
+- Transações quando uma operação envolver várias escritas que devem ser atômicas.
+
+## Auth
+
+- Senhas com **bcrypt**; tokens JWT com segredo só em variáveis de ambiente.
+- Perfis/roles checados no back-end (ex.: `gestor`, `secretaria`, `profissional`), não só na UI.
+
+## Princípio do Escoteiro
+
+- Ao alterar código legado: melhorar incrementalmente (extrair validação, reduzir duplicação) sem misturar refatoração grande com feature no mesmo PR.
+
+## Checklist rápido
+
+- Rota fina; controller com responsabilidade clara; auth aplicada onde necessário
+- Sequelize sem concatenação insegura de SQL; segredos no `.env`
+- Respostas JSON previsíveis; erros 500 sem vazar stack ao cliente em produção

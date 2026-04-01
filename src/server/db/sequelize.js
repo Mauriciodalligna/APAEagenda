@@ -1,31 +1,10 @@
 import { Sequelize } from "sequelize";
+import { createRequire } from "module";
 
-const {
-  DATABASE_URL,
-  DB_HOST = "localhost",
-  DB_PORT = "5432",
-  DB_NAME = "apaeagenda",
-  DB_USER = "postgres",
-  DB_PASSWORD = "password",
-  NODE_ENV,
-} = process.env;
+const require = createRequire(import.meta.url);
+const { buildSequelize } = require("./db-connection.cjs");
 
-const logging = NODE_ENV === "development" ? console.log : false;
-
-export const sequelize = DATABASE_URL
-  ? new Sequelize(DATABASE_URL, {
-      dialect: "postgres",
-      logging,
-      dialectOptions: {
-        ssl: { require: true, rejectUnauthorized: false },
-      },
-    })
-  : new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
-      host: DB_HOST,
-      port: Number(DB_PORT),
-      dialect: "postgres",
-      logging,
-    });
+export const sequelize = buildSequelize(Sequelize);
 
 export async function verifyDatabaseConnection() {
   await sequelize.authenticate();
@@ -33,5 +12,3 @@ export async function verifyDatabaseConnection() {
 }
 
 export default sequelize;
-
-

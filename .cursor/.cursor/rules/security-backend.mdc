@@ -1,0 +1,67 @@
+---
+description: Segurança no back-end — entrada, SQL, segredos, JWT, Node/Next/Sequelize
+globs:
+  - "src/app/api/**/*.js"
+  - "src/controllers/**/*.js"
+  - "src/middlewares/**/*.js"
+  - "src/server/**/*.js"
+  - "src/utils/**/*.js"
+  - ".env.example"
+---
+
+# Segurança — Back-end (Node.js / Next.js / Sequelize)
+
+Regras para manter o código seguro. Inspiradas em [cursor-security-rules](https://github.com/matank001/cursor-security-rules) e boas práticas OWASP. Não gerar código que viole estas regras; em violação, indicar o motivo e sugerir correção.
+
+## 1. Entrada de usuário
+
+- **Nunca** usar entrada bruta (body, query, headers) em caminhos de arquivo, `eval`, comandos shell ou SQL concatenado.
+- **Sempre** validar e tipar entrada (schema manual, biblioteca de validação ou checagens explícitas) antes de persistir ou repassar.
+- **Não** confiar só na validação do front-end; revalidar na API.
+
+## 2. SQL e banco de dados
+
+- **Sempre** usar Sequelize com parâmetros (`where`, `replacements` em queries nomeadas) ou prepared statements. **Nunca** interpolar input do usuário em string SQL.
+- **Evitar** nomes de tabela/coluna vindos do cliente; se inevitável, allow-list estrita.
+- **Não** expor mensagens de erro do banco ao cliente; logar no servidor e retornar mensagem genérica.
+- Senhas com **bcrypt** (ou algoritmo já adotado); nunca armazenar em texto puro.
+
+## 3. Segredos e credenciais
+
+- **Nunca** commitar chaves, senhas de banco ou `JWT_SECRET` no código. Usar `.env` / `.env.local` (listados no `.gitignore`) e documentar apenas placeholders em `.env.example`.
+- **Não** expor segredos em respostas JSON, logs ou front-end.
+- Comparação de tokens/hashes: usar APIs com tempo constante quando aplicável (`crypto.timingSafeEqual` para comparar buffers, não `===` em segredos brutos se o risco for timing).
+
+## 4. Arquivos e caminhos
+
+- **Nunca** montar paths de arquivo a partir de input do usuário sem validação (evitar path traversal `../`).
+- Leitura/escrita em disco só com caminhos confiáveis ou IDs validados + checagem de permissão.
+
+## 5. Execução e código dinâmico
+
+- **Evitar** `eval`, `new Function`, `child_process` com strings vindas do usuário.
+- **Não** usar `serialize`/`deserialize` inseguros em dados não confiáveis; preferir JSON.
+
+## 6. Saída e XSS
+
+- No React, texto escapado por padrão; evitar `dangerouslySetInnerHTML` com conteúdo não sanitizado.
+- Em APIs JSON, não retornar HTML cru de dados do usuário sem política clara de sanitização.
+
+## 7. Autenticação e autorização
+
+- JWT e cookies conforme padrão do projeto; validar assinatura e expiração em cada rota protegida.
+- Autorização por perfil/papel no servidor (`gestor`, `secretaria`, etc.), não apenas ocultando botões na UI.
+
+## 8. Logs
+
+- **Não** logar senhas, tokens completos ou dados pessoais desnecessários.
+
+## 9. Comunicação
+
+- HTTPS em produção; não desabilitar verificação TLS sem motivo documentado.
+
+## Checklist rápido
+
+- Validação na API; Sequelize sem SQL concatenado com input
+- Segredos só em variáveis de ambiente; `.env` fora do git
+- AuthZ no back-end; erros genéricos ao cliente em produção

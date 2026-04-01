@@ -1,0 +1,17 @@
+---
+description: Comandos do projeto — npm, Next.js, Sequelize CLI
+globs:
+  - "package.json"
+  - "package-lock.json"
+  - "**/package.json"
+---
+
+# Comandos — APAE Agenda
+
+- **Ambiente:** Node.js 18+ (recomendado LTS). Instalar dependências com `npm install`.
+- **Desenvolvimento:** `npm run dev` (Next.js).
+- **Produção / CI:** `npm run build` e `npm run start`.
+- **Qualidade:** `npm run lint` (ESLint + Next).
+- **Banco (Sequelize):** `npm run db:migrate`, `npm run db:undo` / `db:undo:all`, `npm run db:seed` — com `DATABASE_URL` ou variáveis configuradas no `.env` / `.env.local` conforme `README.md` e `.env.example`.
+
+Regras detalhadas de API e front-end: `next-api-standards.mdc` e `react-next-standards.mdc`.

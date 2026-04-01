@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { sendPasswordResetEmail, isEmailConfigured } from "@/utils/email";
 
 /**
- * Rota de teste para verificar se o envio de email está funcionando
- * 
- * Uso:
- * - No navegador: http://localhost:3000/api/auth/test-email?email=seu-email@exemplo.com
- * - Ou via curl: curl "http://localhost:3000/api/auth/test-email?email=seu-email@exemplo.com"
+ * Rota de teste para verificar se o envio de email está funcionando.
+ * Em produção fica desligada salvo ALLOW_TEST_EMAIL_ROUTE=true.
  */
 export async function GET(req) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_TEST_EMAIL_ROUTE !== "true"
+  ) {
+    return NextResponse.json({ ok: false, error: "Não encontrado" }, { status: 404 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const testEmail = searchParams.get("email");
@@ -27,13 +31,11 @@ export async function GET(req) {
       console.log(`[Test Email] Testando envio para: ${testEmail}`);
     }
 
-    // Gerar um token de teste
     const testToken = "test-token-" + Date.now();
 
-    // Tentar enviar email
     let emailSent = false;
     let errorDetails = null;
-    
+
     try {
       emailSent = await sendPasswordResetEmail(testEmail, testToken, "Usuário de Teste");
     } catch (error) {
@@ -55,24 +57,24 @@ export async function GET(req) {
         note: "Verifique a caixa de entrada e spam do email informado. Se não receber, verifique os logs do servidor para mais detalhes.",
         warning: "Se o email não chegou, verifique: 1) Pasta de spam, 2) Painel do Brevo (Estatísticas), 3) Logs do servidor para erros",
       });
-    } else {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Falha ao enviar email. Verifique os logs do servidor e as configurações SMTP.",
-          email: testEmail,
-          emailConfigured: isEmailConfigured(),
-          errorDetails: errorDetails,
-          troubleshooting: {
-            step1: "Verifique os logs do servidor (console onde o Next.js está rodando)",
-            step2: "Verifique se o arquivo .env.local existe e está correto",
-            step3: "Verifique se o servidor foi reiniciado após criar/editar .env.local",
-            step4: "Verifique no painel do Brevo se há bloqueios ou erros",
-          },
-        },
-        { status: 500 }
-      );
     }
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Falha ao enviar email. Verifique os logs do servidor e as configurações SMTP.",
+        email: testEmail,
+        emailConfigured: isEmailConfigured(),
+        errorDetails: errorDetails,
+        troubleshooting: {
+          step1: "Verifique os logs do servidor (console onde o Next.js está rodando)",
+          step2: "Verifique se o arquivo .env.local existe e está correto",
+          step3: "Verifique se o servidor foi reiniciado após criar/editar .env.local",
+          step4: "Verifique no painel do Brevo se há bloqueios ou erros",
+        },
+      },
+      { status: 500 }
+    );
   } catch (error) {
     console.error("[Test Email] Erro:", error.message);
     return NextResponse.json(
@@ -85,4 +87,3 @@ export async function GET(req) {
     );
   }
 }
-

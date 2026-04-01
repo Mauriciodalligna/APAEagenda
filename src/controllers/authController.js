@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import Usuario from "@/server/db/models/usuario";
+import { getJwtSecret } from "@/server/utils/jwtSecret";
 
 function isBcryptHash(value) {
   return typeof value === "string" && value.startsWith("$2");
@@ -83,7 +84,11 @@ export async function login({ email, senha }) {
     return { ok: false, status: 401, error: "Credenciais inválidas" };
   }
 
-  const secret = process.env.JWT_SECRET || "dev-secret";
+  const secret = getJwtSecret();
+  if (!secret) {
+    return { ok: false, status: 503, error: "Servidor não configurado (JWT)" };
+  }
+
   const token = jwt.sign(
     { sub: usuario.id, email: usuario.email, perfil: usuario.perfil, nome: usuario.nome, mcp: !!usuario.must_change_password },
     secret,

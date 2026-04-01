@@ -1,0 +1,37 @@
+---
+description: Padrões React e Next.js — App Router, Material UI, páginas em src/app
+globs:
+  - "src/app/**/*.js"
+  - "src/app/**/*.jsx"
+  - "src/components/**/*.js"
+  - "src/components/**/*.jsx"
+---
+
+# React / Next.js — APAE Agenda (front-end)
+
+- **Stack:** React 18, Next.js 14 App Router, Material UI v5 (`@mui/material`, `@emotion/react`), calendário e gráficos conforme dependências do projeto (`react-big-calendar`, `recharts`, etc.).
+- **Comandos:** `npm run dev`, `npm run build`, `npm run lint`.
+
+## Organização
+
+- Páginas e layouts em `src/app/` (rotas por pasta); componentes reutilizáveis em `src/components/` quando existir.
+- Preferir consistência com arquivos já no repositório (`.js` vs `.jsx`).
+
+## Material UI
+
+- Usar componentes MUI para UI alinhada ao restante do app (`Box`, `Stack`, `Typography`, `Button`, `TextField`, etc.).
+- Tema e estilos: seguir padrão já usado (Emotion/`sx` ou styled); não introduzir outra lib de CSS sem necessidade.
+
+## Boas práticas
+
+- Estado e efeitos: `useState`, `useEffect`, `useCallback`, `useMemo` quando fizer sentido; evitar prop drilling excessivo — extrair hooks ou componentes.
+- Listas: `key` estável (evitar índice em listas mutáveis).
+- Não usar `dangerouslySetInnerHTML` com conteúdo não confiável.
+- Chamadas à API: tratar loading/erro; não armazenar tokens em locais inseguros (preferir padrão já adotado no projeto).
+- Remover `console.log`/`debugger` antes de produção.
+
+## Checklist rápido
+
+- MUI e estrutura de pastas alinhadas ao projeto
+- Acessibilidade básica (labels, botões semânticos) quando tocando formulários
+- Sem secrets no front; autorização sensível sempre validada na API

@@ -1,0 +1,16 @@
+---
+description: Comando /ref-executar-task — executar próxima tarefa de PRD de refatoração
+alwaysApply: false
+globs: tasks/prd-refatoracao-*/**
+---
+
+# Comando /ref-executar-task
+
+Quando o usuário invocar **/ref-executar-task** ou pedir para **executar a (próxima) tarefa** em contexto de **PRD de refatoração** (pasta `tasks/prd-refatoracao-[nome-modulo]/`):
+
+1. **Siga a skill** `@.cursor/.cursor/skills/ref-executar-task/SKILL.md`.
+2. **Identifique a pasta:** `./tasks/prd-refatoracao-[nome-modulo]/`.
+3. **Próxima tarefa:** Consulte `tasks.md` e `[num]_task.md`; primeira pendente.
+4. **Execute o fluxo:** Configuração pré-tarefa → Análise → Resumo → Plano → Implementação. Use **npm** para o projeto (scripts em `package.json`).
+
+Não pule a leitura do PRD da mesma pasta. Tech Spec é opcional.

@@ -26,14 +26,10 @@ import DialogActions from "@mui/material/DialogActions";
 import Grid from "@mui/material/Grid";
 import Divider from "@mui/material/Divider";
 import LinearProgress from "@mui/material/LinearProgress";
+import { getStoredToken } from "@/utils/token";
 
 const initialFilters = { nome: "", turma: "", turno: "" };
 const DEFAULT_ROWS_PER_PAGE = 10;
-
-function getStoredToken() {
-  if (typeof window === "undefined") return "";
-  return sessionStorage.getItem("token") || localStorage.getItem("token") || "";
-}
 
 function buildQueryString(filters, pagination) {
   const params = new URLSearchParams();
