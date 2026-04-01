@@ -23,3 +23,7 @@ Thumbs.db
 .vercel/
 .turbo/
 
+# Planejamento local (não versionar)
+tasks/
+templates/
+
