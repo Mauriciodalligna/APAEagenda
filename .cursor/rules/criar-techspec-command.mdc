@@ -1,0 +1,19 @@
+---
+description: Comando /criar-techspec — criar Tech Spec a partir do PRD
+alwaysApply: false
+globs:
+  - "tasks/**/*.md"
+  - "templates/techspec-template.md"
+---
+
+# Comando /criar-techspec
+
+Quando o usuário invocar **/criar-techspec** ou pedir **especificação técnica** / **tech spec** após um PRD:
+
+1. **Siga a skill** `@.cursor/skills/criar-techspec/SKILL.md` (análise do PRD, análise do projeto, esclarecimentos técnicos antes do arquivo final).
+2. **PRD de entrada:** `tasks/prd-[nome-funcionalidade]/prd.md`.
+3. **Template:** `./templates/techspec-template.md`.
+4. **Salvar em:** `tasks/prd-[nome-funcionalidade]/techspec.md`.
+5. **Referências:** `references/prd-analysis.md`, `references/project-analysis.md`, `references/compliance-mapping.md`, `references/template-and-output.md` conforme necessidade.
+
+Alinhar decisões com `@.cursor/rules/` e o README do projeto. Próximo passo típico: **/criar-tasks**.

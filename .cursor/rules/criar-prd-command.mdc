@@ -1,0 +1,19 @@
+---
+description: Comando /criar-prd — criar PRD (Product Requirements Document)
+alwaysApply: false
+globs:
+  - "tasks/**/*.md"
+  - "templates/prd-template.md"
+  - "templates/**/*.md"
+---
+
+# Comando /criar-prd
+
+Quando o usuário invocar **/criar-prd** ou pedir para **criar um PRD** / **documento de requisitos** para uma funcionalidade:
+
+1. **Siga a skill** `@.cursor/skills/criar-prd/SKILL.md` (fluxo esclarecer → planejar → redigir → salvar; não gerar PRD antes das perguntas de clarificação).
+2. **Template do projeto:** `./templates/prd-template.md`.
+3. **Salvar em:** `./tasks/prd-[nome-funcionalidade]/prd.md`.
+4. **Referências da skill:** `references/clarification-questions.md`, `references/template-and-location.md`, `references/quality-checklist.md` (carregar conforme a fase).
+
+Próximo passo típico após PRD aprovado: **/criar-techspec**.

@@ -8,7 +8,7 @@ globs: tasks/**/*.md
 
 Quando o usuário invocar **/executar-task** ou pedir para **executar a (próxima) tarefa** em contexto de **PRD de produto** (pasta `tasks/prd-[nome-funcionalidade]/`):
 
-1. **Siga a skill** `@.cursor/.cursor/skills/executar-task/SKILL.md` (ler fluxo e restrições).
+1. **Siga a skill** `@.cursor/skills/executar-task/SKILL.md` (ler fluxo e restrições).
 2. **Identifique a pasta:** `./tasks/prd-[nome-funcionalidade]/` (se o usuário não indicar, use a pasta do arquivo de tarefa em contexto ou pergunte).
 3. **Próxima tarefa:** Consulte `tasks.md` e os arquivos `[num]_task.md`; escolha a primeira tarefa com status pendente.
 4. **Execute o fluxo:** Configuração pré-tarefa → Análise → Resumo → Plano → Implementação. Use **npm** para scripts do projeto (`npm run dev`, `npm run lint`, `npm run db:migrate`, etc.).

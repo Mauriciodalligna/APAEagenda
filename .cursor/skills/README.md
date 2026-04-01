@@ -20,6 +20,12 @@ nome-da-skill/
 - **Front:** Next.js 14, React 18, Material UI v5.
 - **Back:** API Routes (`src/app/api`), controllers, Sequelize, PostgreSQL, JWT, bcrypt.
 
+## Documentação do projeto (`.cursor/docs`)
+
+| Arquivo | Uso |
+|---------|-----|
+| [`../docs/melhorias-e-boas-praticas.md`](../docs/melhorias-e-boas-praticas.md) | Histórico de melhorias de segurança/config, backlog recomendado, variáveis de ambiente e pontos de entrada no código |
+
 ## Skills disponíveis
 
 | Skill | Descrição | Uso principal |
@@ -30,16 +36,16 @@ nome-da-skill/
 | **criar-tasks** | Lista de tarefas a partir de PRD e Tech Spec | Planejamento de implementação |
 | **ref-criar-tasks** | Tasks para PRD de refatoração (tests-first) | Decompor refatoração |
 | **ref-criar-prd** | PRD de refatoração orientado a testes | Refatoração planejada |
-| **executar-task** | Executar próxima tarefa de PRD de produto | Implementação guiada; `/executar-task` |
-| **ref-executar-task** | Executar próxima tarefa de PRD de refatoração | `/ref-executar-task` |
+| **executar-task** | Executar próxima tarefa de PRD de produto | Implementação guiada; atalho `/executar-task` (ver `.cursor/commands/`) |
+| **ref-executar-task** | Executar próxima tarefa de PRD de refatoração | Atalho `/ref-executar-task` em `.cursor/commands/` |
 | **redmine-task-generator** | Decompor requisitos em tarefas para Redmine | Backlog externo |
 | **refatorar-com-testes** | Testes primeiro, depois refatorar com segurança | Legado sem testes (quando houver suíte) |
 | **modelagem-sequelize** | Migrations, modelos e PostgreSQL no APAE Agenda | Novas tabelas ou alteração de schema |
 
 ## Como usar
 
-1. Invocar a skill pelo nome ou `@.cursor/.cursor/skills/<nome>/SKILL.md`.
-2. Carregar referências com `@.cursor/.cursor/skills/<nome>/references/...`.
+1. **Atalhos `/`:** comandos do projeto em `.cursor/commands/*.md` (ex.: `/criar-prd`) injetam o prompt; a skill em `.cursor/skills/<nome>/SKILL.md` é a fonte do fluxo completo.
+2. Anexar contexto: `@.cursor/skills/<nome>/SKILL.md` ou `@.cursor/skills/<nome>/references/...`.
 3. Seguir o fluxo descrito em cada `SKILL.md`.
 
 ## Metadados (opcional)

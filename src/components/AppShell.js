@@ -20,26 +20,30 @@ export default function AppShell({ children }) {
   // Verifica autenticação ao montar o componente e ao recarregar a página
   useEffect(() => {
     const token = getStoredToken();
-    
+
+    const finish = (authorizedValue) => {
+      queueMicrotask(() => {
+        setAuthorized(authorizedValue);
+        setChecked(true);
+      });
+    };
+
     // Se não há token, redireciona para login
     if (!token) {
       redirectToLogin(router);
-      setAuthorized(false);
-      setChecked(true);
+      finish(false);
       return;
     }
 
     // Se o token está expirado, redireciona para login
     if (isTokenExpired(token)) {
       redirectToLogin(router);
-      setAuthorized(false);
-      setChecked(true);
+      finish(false);
       return;
     }
 
     // Token válido
-    setAuthorized(true);
-    setChecked(true);
+    finish(true);
   }, [router]);
 
   // Monitora mudanças no storage (quando o token é removido em outra aba)

@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "db:migrate": "sequelize-cli db:migrate",
     "db:undo": "sequelize-cli db:migrate:undo",
     "db:undo:all": "sequelize-cli db:migrate:undo:all",
@@ -22,16 +22,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
+    "@emotion/server": "^11.11.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "5.15.14",
     "@mui/material": "^5.15.14",
-    "bcrypt": "^5.1.1",
+    "@mui/material-nextjs": "^7.3.9",
+    "bcrypt": "^6.0.0",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.1",
     "jsonwebtoken": "^9.0.2",
-    "jspdf": "^3.0.2",
-    "next": "^14.2.3",
+    "jspdf": "^4.2.1",
+    "next": "^16.2.2",
     "nodemailer": "^8.0.4",
     "pg": "^8.11.1",
     "pg-hstore": "^2.3.4",
@@ -42,8 +45,8 @@
     "sequelize": "^6.35.1"
   },
   "devDependencies": {
-    "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.6",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.2.2",
     "sequelize-cli": "^6.6.3"
   }
 }

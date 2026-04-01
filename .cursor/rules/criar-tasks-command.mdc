@@ -1,0 +1,19 @@
+---
+description: Comando /criar-tasks — gerar tasks.md e [num]_task.md a partir de PRD e Tech Spec
+alwaysApply: false
+globs:
+  - "tasks/**/*.md"
+  - "templates/tasks-template.md"
+  - "templates/task-template.md"
+---
+
+# Comando /criar-tasks
+
+Quando o usuário invocar **/criar-tasks** ou pedir para **gerar tarefas** / **decompor em tasks** a partir de PRD e Tech Spec:
+
+1. **Siga a skill** `@.cursor/skills/criar-tasks/SKILL.md` (mostrar lista high-level e obter aprovação **antes** de criar arquivos).
+2. **Pré-requisitos:** `tasks/prd-[nome-funcionalidade]/prd.md` e `tasks/prd-[nome-funcionalidade]/techspec.md`.
+3. **Templates:** `./templates/tasks-template.md` e `./templates/task-template.md`.
+4. **Saída:** `tasks/prd-[nome-funcionalidade]/tasks.md` e um `[num]_task.md` por tarefa principal.
+
+Próximo passo típico: **/executar-task** na pasta da funcionalidade.

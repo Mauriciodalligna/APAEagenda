@@ -1,0 +1,17 @@
+---
+description: Comando /code-review — revisar código da branch (padrões APAE Agenda)
+alwaysApply: false
+globs:
+  - "src/**/*.js"
+  - "src/**/*.jsx"
+  - "tasks/**/*.md"
+---
+
+# Comando /code-review
+
+Quando o usuário invocar **/code-review** ou pedir **revisão de código** / **review do PR** neste repositório:
+
+1. **Siga a skill** `@.cursor/skills/code-review/SKILL.md` (escopo = diff da branch atual; apenas o modificado).
+2. **Escopo:** usar `git diff` / arquivos alterados na branch; checklists em `references/backend-checklist.md` e `references/frontend-checklist.md` conforme o que mudou.
+3. **Padrões do projeto:** `@.cursor/rules/next-api-standards.mdc`, `@.cursor/rules/react-next-standards.mdc`, `@.cursor/rules/security-backend.mdc` quando aplicável.
+4. **Relatório:** formato em `references/severity-and-report.md`.

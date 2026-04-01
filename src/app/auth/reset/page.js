@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
@@ -12,7 +12,7 @@ import PageContainer from "@/components/PageContainer";
 import FormInput from "@/components/FormInput";
 import CustomButton from "@/components/CustomButton";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tokenFromUrl = useMemo(() => searchParams.get("token") || "", [searchParams]);
@@ -129,4 +129,16 @@ export default function ResetPasswordPage() {
   );
 }
 
-
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageContainer>
+          <CircularProgress sx={{ display: "block", mx: "auto", my: 4 }} />
+        </PageContainer>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}

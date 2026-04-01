@@ -8,7 +8,7 @@ globs: tasks/prd-refatoracao-*/**
 
 Quando o usuário invocar **/ref-executar-task** ou pedir para **executar a (próxima) tarefa** em contexto de **PRD de refatoração** (pasta `tasks/prd-refatoracao-[nome-modulo]/`):
 
-1. **Siga a skill** `@.cursor/.cursor/skills/ref-executar-task/SKILL.md`.
+1. **Siga a skill** `@.cursor/skills/ref-executar-task/SKILL.md`.
 2. **Identifique a pasta:** `./tasks/prd-refatoracao-[nome-modulo]/`.
 3. **Próxima tarefa:** Consulte `tasks.md` e `[num]_task.md`; primeira pendente.
 4. **Execute o fluxo:** Configuração pré-tarefa → Análise → Resumo → Plano → Implementação. Use **npm** para o projeto (scripts em `package.json`).
