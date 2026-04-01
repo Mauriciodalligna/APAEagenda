@@ -28,14 +28,10 @@ import Grid from "@mui/material/Grid";
 import LinearProgress from "@mui/material/LinearProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
+import { getStoredToken } from "@/utils/token";
 
 const initialFilters = { nome: "", setor: "", status: "" };
 const DEFAULT_ROWS_PER_PAGE = 10;
-
-function getStoredToken() {
-  if (typeof window === "undefined") return "";
-  return sessionStorage.getItem("token") || localStorage.getItem("token") || "";
-}
 
 function buildQueryString(filters, pagination) {
   const params = new URLSearchParams();

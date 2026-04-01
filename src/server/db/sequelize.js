@@ -6,7 +6,7 @@ const {
   DB_PORT = "5432",
   DB_NAME = "apaeagenda",
   DB_USER = "postgres",
-  DB_PASSWORD = "Mauro321",
+  DB_PASSWORD = "password",
   NODE_ENV,
 } = process.env;
 
