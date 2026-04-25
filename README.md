@@ -8,6 +8,8 @@ Sistema de agenda para APAE — aplicação Next.js com React, Material UI, Post
 - **PostgreSQL** 12 ou superior
 - **npm** (vem com o Node.js)
 
+**CI (GitHub):** em repositórios no GitHub, o workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa `npm ci`, `npm run lint` e `npm run build` em push/PRs para `main` ou `master`. Para exigir verde antes do merge, ative *branch protection* nas configurações do repositório.
+
 ---
 
 ## 1. Instalar Node.js (Ubuntu)
