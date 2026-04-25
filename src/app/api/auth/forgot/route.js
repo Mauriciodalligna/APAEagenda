@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { Op } from "sequelize";
 import Usuario from "@/server/db/models/usuario";
 import PasswordResetToken from "@/server/db/models/password_reset_token";
+import { RATE_LIMIT_FORGOT, assertRateLimit } from "@/middlewares/rateLimit";
 import { sendPasswordResetEmail, isEmailConfigured } from "@/utils/email";
 
 // Validação de email
@@ -12,6 +13,10 @@ function isValidEmail(email) {
 }
 
 export async function POST(request) {
+  const limited = assertRateLimit(request, RATE_LIMIT_FORGOT);
+  if (limited) {
+    return limited;
+  }
   try {
     const { email } = await request.json();
 

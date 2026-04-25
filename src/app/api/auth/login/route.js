@@ -1,6 +1,11 @@
 import { login } from "@/controllers/authController";
+import { assertRateLimit, RATE_LIMIT_LOGIN } from "@/middlewares/rateLimit";
 
 export async function POST(request) {
+  const limited = assertRateLimit(request, RATE_LIMIT_LOGIN);
+  if (limited) {
+    return limited;
+  }
   try {
     const body = await request.json();
     const result = await login(body);
