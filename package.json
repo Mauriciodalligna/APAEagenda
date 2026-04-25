@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:migrate": "sequelize-cli db:migrate",
     "db:undo": "sequelize-cli db:migrate:undo",
     "db:undo:all": "sequelize-cli db:migrate:undo:all",
@@ -47,6 +49,7 @@
   "devDependencies": {
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.2.2",
-    "sequelize-cli": "^6.6.3"
+    "sequelize-cli": "^6.6.3",
+    "vitest": "^3.2.4"
   }
 }

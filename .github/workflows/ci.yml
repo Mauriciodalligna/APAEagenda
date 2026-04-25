@@ -1,5 +1,4 @@
-# Integração contínua: lint + build.
-# TODO (tarefa 5): adicionar passo `npm test` quando o script `test` existir em package.json.
+# Integração contínua: lint + testes + build.
 name: CI
 
 on:
@@ -33,6 +32,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build

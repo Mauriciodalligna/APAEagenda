@@ -8,7 +8,7 @@ Sistema de agenda para APAE — aplicação Next.js com React, Material UI, Post
 - **PostgreSQL** 12 ou superior
 - **npm** (vem com o Node.js)
 
-**CI (GitHub):** em repositórios no GitHub, o workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa `npm ci`, `npm run lint` e `npm run build` em push/PRs para `main` ou `master`. Para exigir verde antes do merge, ative *branch protection* nas configurações do repositório.
+**CI (GitHub):** em repositórios no GitHub, o workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) executa `npm ci`, `npm run lint`, `npm test` e `npm run build` em push/PRs para `main` ou `master`. Para exigir verde antes do merge, ative *branch protection* nas configurações do repositório.
 
 ---
 
@@ -173,6 +173,8 @@ npm start
 | `npm run build`   | Build para produção          |
 | `npm start`       | Iniciar em modo produção     |
 | `npm run lint`    | Rodar ESLint                 |
+| `npm test`        | Rodar testes (Vitest)        |
+| `npm run test:watch` | Testes em modo watch    |
 | `npm run db:migrate`   | Executar migrações     |
 | `npm run db:undo`     | Desfazer última migração |
 | `npm run db:seed`     | Executar seeds          |
@@ -180,6 +182,10 @@ npm start
 ---
 
 ## Solução de problemas (Ubuntu)
+
+### `vitest: not found` ou testes não rodam após `npm install`
+
+Com `NODE_ENV=production`, o npm omite `devDependencies` (onde está o Vitest). Use `npm install --include=dev` ou instale dependências sem `NODE_ENV=production`.
 
 ### Erro ao instalar dependências (bcrypt / node-gyp)
 
