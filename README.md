@@ -103,7 +103,12 @@ JWT_SECRET=uma-chave-secreta-forte-aqui
 
 # URL da aplicação (para links de e-mail e redirects)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# HSTS (opcional, produção com HTTPS em todo o tráfego)
+# ENABLE_HSTS=true
 ```
+
+Cabeçalhos de segurança HTTP (ex.: `X-Frame-Options`, `X-Content-Type-Options`) são definidos no `next.config.mjs`. O HSTS (`Strict-Transport-Security`) só é adicionado se `ENABLE_HSTS=true` no ambiente de build/ runtime — veja comentários no `.env.example`.
 
 **E-mail (opcional — para recuperação de senha):**
 
