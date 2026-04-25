@@ -28,6 +28,7 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { MAX_PAGE_SIZE } from "@/constants/pagination";
 import TodayIcon from "@mui/icons-material/Today";
 import ViewWeekIcon from "@mui/icons-material/ViewWeek";
 import ViewDayIcon from "@mui/icons-material/ViewDay";
@@ -173,9 +174,9 @@ export default function AgendamentosPage() {
     try {
       setError("");
       const [rp, ra, rt] = await Promise.all([
-        fetch(`/api/profissionais?status=true&limit=200`, { headers: { authorization: `Bearer ${token}` } }),
-        fetch(`/api/alunos?status=true&limit=200`, { headers: { authorization: `Bearer ${token}` } }),
-        fetch(`/api/atividades?status=true&limit=200`, { headers: { authorization: `Bearer ${token}` } }),
+        fetch(`/api/profissionais?status=true&limit=${MAX_PAGE_SIZE}`, { headers: { authorization: `Bearer ${token}` } }),
+        fetch(`/api/alunos?status=true&limit=${MAX_PAGE_SIZE}`, { headers: { authorization: `Bearer ${token}` } }),
+        fetch(`/api/atividades?status=true&limit=${MAX_PAGE_SIZE}`, { headers: { authorization: `Bearer ${token}` } }),
       ]);
       const [jp, ja, jt] = await Promise.all([rp.json(), ra.json(), rt.json()]);
       if (!jp.ok || !ja.ok || !jt.ok) { 

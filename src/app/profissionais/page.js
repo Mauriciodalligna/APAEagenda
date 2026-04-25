@@ -29,6 +29,7 @@ import LinearProgress from "@mui/material/LinearProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import { getStoredToken } from "@/utils/token";
+import { MAX_PAGE_SIZE } from "@/constants/pagination";
 
 const initialFilters = { nome: "", setor: "", status: "" };
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -90,7 +91,7 @@ export default function ProfissionaisListPage() {
     async function loadUsuarios() {
       try {
         const token = getStoredToken();
-        const res = await fetch(`/api/usuarios?perfil=profissional&status=true&limit=200`, { headers: { authorization: `Bearer ${token}` } });
+        const res = await fetch(`/api/usuarios?perfil=profissional&status=true&limit=${MAX_PAGE_SIZE}`, { headers: { authorization: `Bearer ${token}` } });
         const j = await res.json();
         if (res.ok && j.ok) {
           setUsuarios(j.data || []);

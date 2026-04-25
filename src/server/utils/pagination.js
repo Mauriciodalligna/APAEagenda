@@ -1,5 +1,6 @@
-export const DEFAULT_LIMIT = 20;
-export const MAX_PAGE_SIZE = 100;
+import { DEFAULT_LIMIT, MAX_PAGE_SIZE } from "@/constants/pagination";
+
+export { DEFAULT_LIMIT, MAX_PAGE_SIZE };
 
 const PAGINATION_ERROR_MESSAGE = "Parâmetros de paginação inválidos";
 

@@ -12,6 +12,7 @@ import CustomButton from "@/components/CustomButton";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useRouter } from "next/navigation";
 import MenuItem from "@mui/material/MenuItem";
+import { MAX_PAGE_SIZE } from "@/constants/pagination";
 
 export default function ProfissionaisCreatePage() {
   const router = useRouter();
@@ -29,7 +30,7 @@ export default function ProfissionaisCreatePage() {
       try {
         setError("");
         const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem("token")) || localStorage.getItem("token");
-        const res = await fetch(`/api/usuarios?perfil=profissional&status=true&limit=200`, { headers: { authorization: `Bearer ${token}` } });
+        const res = await fetch(`/api/usuarios?perfil=profissional&status=true&limit=${MAX_PAGE_SIZE}`, { headers: { authorization: `Bearer ${token}` } });
         const j = await res.json();
         if (!res.ok || !j.ok) { setError(j?.error || "Falha ao carregar usuários profissionais"); return; }
         setUsuarios(j.data || []);
