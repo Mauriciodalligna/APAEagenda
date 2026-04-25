@@ -1,5 +1,6 @@
 import { ensureRole } from "@/middlewares/auth";
 import { listar, criar } from "@/controllers/profissionalController";
+import { parsePagination } from "@/server/utils/pagination";
 
 export async function GET(request) {
   // Gestores, secretaria e profissionais podem consultar profissionais
@@ -11,7 +12,15 @@ export async function GET(request) {
     setor: searchParams.get("setor") || undefined,
     status: searchParams.get("status") || undefined,
   };
-  const pagination = { offset: searchParams.get("offset") || 0, limit: searchParams.get("limit") || 100 };
+  const paginationResult = parsePagination(searchParams);
+  if (!paginationResult.ok) {
+    return new Response(JSON.stringify(paginationResult), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  const pagination = { offset: paginationResult.offset, limit: paginationResult.limit };
   const result = await listar({ search, pagination });
   return new Response(JSON.stringify(result), { status: result.ok ? 200 : result.status || 400, headers: { "content-type": "application/json" } });
 }
